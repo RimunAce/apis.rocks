@@ -7,10 +7,12 @@ const compressResponse = async (
   req: Request
 ): Promise<Response> => {
   const acceptEncoding = req.headers.get("accept-encoding") || "";
-  if (
-    acceptEncoding.includes("gzip") &&
-    !response.headers.get("content-encoding")
-  ) {
+  const clientAcceptsGzip = acceptEncoding.includes("gzip");
+  const hasResponseHeaders = Boolean(response.headers);
+  const hasNoContentEncoding =
+    hasResponseHeaders && !response.headers.get("content-encoding");
+
+  if (clientAcceptsGzip && hasNoContentEncoding) {
     const originalBuffer = Buffer.from(await response.arrayBuffer());
     const compressedBuffer = zlib.gzipSync(originalBuffer);
     const headers = new Headers(response.headers);

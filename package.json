@@ -3,14 +3,18 @@
   "version": "1.0.50",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
   },
   "dependencies": {
+    "@elysiajs/eden": "^1.2.0",
     "app": "file:",
-    "elysia": "latest",
-    "zlib": "^1.0.5"
+    "elysia": "^1.2.24",
+    "zlib": "^1.0.5",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/bun": "^1.2.4",
     "bun-types": "latest"
   },
   "module": "src/index.js"
