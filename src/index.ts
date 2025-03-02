@@ -22,3 +22,4 @@ new Elysia()
 console.log(
   `🦊 Elysia running in ${env.NODE_ENV} mode on port ${env.PORT}`
 );
+

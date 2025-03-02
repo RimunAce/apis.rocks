@@ -5,8 +5,8 @@ import sitemapService from "./website/misc/sitemap.xml..service";
 import robotsService from "./website/misc/robots.txt.service";
 
 const rootService = new Elysia()
-    .use(htmlService)
-    .use(robotsService)
-    .use(sitemapService);
+  .use(htmlService)
+  .use(robotsService)
+  .use(sitemapService);
 
 export default rootService;
