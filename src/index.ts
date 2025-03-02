@@ -26,11 +26,17 @@ import modelsService from "./routes/ai/models/models.service";
 const logRequest = (app: Elysia) => {
   return app.onRequest(({ request }) => {
     const startTime = performance.now();
-    logger.info(`Incoming ${request.method} request to ${request.url}`);
+    logger.info(
+      `Incoming ${request.method} request to ${request.url} from IP ${
+        request.headers.get("x-forwarded-for") || request.headers.get("host")
+      }`
+    );
     return () => {
       const duration = Math.round(performance.now() - startTime);
       logger.info(
-        `Completed ${request.method} ${request.url} in ${duration}ms`
+        `Completed ${request.method} ${request.url} in ${duration}ms from IP ${
+          request.headers.get("x-forwarded-for") || request.headers.get("host")
+        }`
       );
     };
   });

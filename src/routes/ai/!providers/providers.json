@@ -1,0 +1,52 @@
+{
+  "template": {
+    "name": "Template",
+    "description": "This is a template provider for demonstration purposes.",
+    "base_url": "https://example.com/",
+    "logo": "",
+    "model-link": [
+      {
+        "chatCompletions": {
+          "their-model-id": {
+            "point-to": "our-model-id-in-models/list.json",
+            "enabled": true
+          },
+          "their-model-id2": {
+            "point-to": "our-model-id2-in-models/list.json",
+            "enabled": false
+          }
+        },
+        "imageGeneration": {
+          "their-model-id": {
+            "point-to": "our-model-id-in-models/list.json",
+            "enabled": true
+          }
+        },
+        "embedding": {
+          "their-model-id": {
+            "point-to": "our-model-id-in-models/list.json",
+            "enabled": true
+          }
+        }
+      }
+    ],
+    "enabled": true
+  },
+  "openrouter": {
+    "name": "OpenRouter",
+    "description": "OpenRouter is a platform that provides access to various AI models and APIs, allowing developers to integrate advanced AI capabilities into their applications.",
+    "base_url": "https://openrouter.ai/",
+    "logo": "https://cdn.apis.rocks/openrouter-logo.webp",
+    "model-link": [
+      {
+        "chatCompletions": {
+          "gpt-4o": {
+            "point-to": "gpt-4o",
+            "enabled": true
+          }
+        }
+      }
+    ],
+    "enabled": true
+  }
+}
