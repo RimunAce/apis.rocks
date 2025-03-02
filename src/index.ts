@@ -1,5 +1,13 @@
+////////////////////////////////
+// Load Dependencies         //
+//////////////////////////////
 import { Elysia, t } from "elysia";
+import { cors } from "@elysiajs/cors";
 import { env } from "process";
+
+////////////////////////////////
+// Load middlewares           //
+////////////////////////////////
 import compressionMiddleware from "./utility/compression/compression.service";
 import logger from "./utility/logger/logger.service";
 
@@ -14,8 +22,30 @@ import modelsService from "./routes/ai/models/models.service";
 ////////////////////////////////
 // Setting Up/Starting Up     //
 ////////////////////////////////
+
+const logRequest = (app: Elysia) => {
+  return app.onRequest(({ request }) => {
+    const startTime = performance.now();
+    logger.info(`Incoming ${request.method} request to ${request.url}`);
+    return () => {
+      const duration = Math.round(performance.now() - startTime);
+      logger.info(
+        `Completed ${request.method} ${request.url} in ${duration}ms`
+      );
+    };
+  });
+};
+
 const app = new Elysia()
-  .use(compressionMiddleware)
+  .use(
+    cors({
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  )
+  .use(logRequest) // Request logging middleware
+  .use(compressionMiddleware) // Compression Middleware - Gzip
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
   .use(healthService) // Health: "/health"
