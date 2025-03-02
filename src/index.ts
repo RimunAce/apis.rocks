@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import { env } from "process";
-import compressionMiddleware from "./utility/compression/index";
+import compressionMiddleware from "./utility/compression/compression.service";
 
 
 new Elysia()
