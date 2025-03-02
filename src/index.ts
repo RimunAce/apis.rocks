@@ -3,7 +3,7 @@
 //////////////////////////////
 import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
-import { env } from "process";
+import { envService } from "./utility/env/env.service";
 
 ////////////////////////////////
 // Load middlewares           //
@@ -56,8 +56,12 @@ const app = new Elysia()
   .use(catService) // Misc: "/cat"
   .use(healthService) // Health: "/health"
   .use(modelsService) // Models: "/models"
-  .listen(env.PORT || 3000);
+  .listen(envService.get("PORT"));
 
-logger.info(`🦊 Elysia running in ${env.NODE_ENV} mode on port ${env.PORT}`);
+logger.info(
+  `🦊 Elysia running in ${envService.get(
+    "NODE_ENV"
+  )} mode on port ${envService.get("PORT")}`
+);
 
 export type App = typeof app;
