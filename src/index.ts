@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { env } from "process";
 import compressionMiddleware from "./utility/compression/compression.service";
+import logger from "./utility/logger/logger.service";
 
 ////////////////////////////////
 // Importing routes           //
@@ -21,6 +22,6 @@ const app = new Elysia()
   .use(modelsService) // Models: "/models"
   .listen(env.PORT || 3000);
 
-console.log(`🦊 Elysia running in ${env.NODE_ENV} mode on port ${env.PORT}`);
+logger.info(`🦊 Elysia running in ${env.NODE_ENV} mode on port ${env.PORT}`);
 
 export type App = typeof app;
