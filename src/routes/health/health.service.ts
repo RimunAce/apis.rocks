@@ -9,7 +9,7 @@ const healthService = new Elysia().get(
     detail: {
       summary: "Health Check",
       description: "Returns the health status of the API",
-      tags: ["health"],
+      tags: ["HEALTH"],
     },
     response: {
       200: t.Object({

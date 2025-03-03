@@ -22,7 +22,7 @@ const catService = new Elysia()
       detail: {
         summary: "Cat Video",
         description: "Returns a cat monitoring video",
-        tags: ["cat"],
+        tags: ["MISCELLANEOUS"],
       },
       response: {
         200: t.Any({

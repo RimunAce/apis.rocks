@@ -18,7 +18,7 @@ const faviconService = new Elysia().get(
     detail: {
       summary: "Favicon",
       description: "Returns the favicon.ico file",
-      tags: ["root"],
+      tags: ["GENERAL"],
     },
     response: {
       200: t.Any({

@@ -1,6 +1,7 @@
 {
   "template": {
     "name": "Template",
+    "env": "TEMPLATE_KEY",
     "description": "This is a template provider for demonstration purposes.",
     "base_url": "https://example.com",
     "logo": "",
@@ -42,13 +43,14 @@
   },
   "openrouter": {
     "name": "OpenRouter",
+    "env": "OPENROUTER_KEY",
     "description": "OpenRouter is a platform that provides access to various AI models and APIs, allowing developers to integrate advanced AI capabilities into their applications.",
     "base_url": "https://openrouter.ai/api/v1",
     "logo": "https://cdn.apis.rocks/openrouter-logo.webp",
     "model-link": [
       {
         "chatCompletions": {
-          "gpt-4o": {
+          "openai/gpt-4o": {
             "weight": 10,
             "url": "/chat/completions",
             "point-to": "gpt-4o",

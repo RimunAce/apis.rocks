@@ -25,7 +25,7 @@ const modelsService = new Elysia()
       detail: {
         summary: "List Models",
         description: "Lists the available AI models",
-        tags: ["models"],
+        tags: ["AI"],
       },
       response: {
         200: t.Object({
@@ -53,7 +53,7 @@ const modelsService = new Elysia()
       detail: {
         summary: "Get Model",
         description: "Retrieves a specific AI model by ID",
-        tags: ["models"],
+        tags: ["AI"],
       },
       params: t.Object({
         id: t.String({

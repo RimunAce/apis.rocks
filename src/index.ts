@@ -19,7 +19,7 @@ import catService from "./routes/misc/cat/cat.service";
 import healthService from "./routes/health/health.service";
 import rootService from "./routes/root/root.service";
 import modelsService from "./routes/ai/models/models.service";
-
+import chatCompletionsService from "./routes/ai/chat.completions/chat.completions.service";
 ////////////////////////////////
 // Setting Up/Starting Up     //
 ////////////////////////////////
@@ -75,6 +75,7 @@ const app = new Elysia()
   .use(catService) // Misc: "/cat"
   .use(healthService) // Health: "/health"
   .use(modelsService) // Models: "/models"
+  .use(chatCompletionsService) // Chat Completions: "/chat/completions"
   .listen(envService.get("PORT"));
 
 logger.info(

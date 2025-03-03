@@ -14,7 +14,7 @@ const sitemapService = new Elysia().get(
     detail: {
       summary: "Sitemap XML",
       description: "Returns the sitemap.xml file for web crawlers",
-      tags: ["root"],
+      tags: ["GENERAL"],
     },
     response: {
       200: t.String({

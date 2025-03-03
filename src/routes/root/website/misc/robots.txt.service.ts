@@ -14,7 +14,7 @@ const robotsService = new Elysia().get(
     detail: {
       summary: "Robots.txt",
       description: "Returns the robots.txt file for web crawlers",
-      tags: ["root"],
+      tags: ["GENERAL"],
     },
     response: {
       200: t.String({

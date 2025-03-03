@@ -14,7 +14,7 @@ const htmlService = new Elysia().get(
     detail: {
       summary: "Landing Page",
       description: "Returns the main landing page HTML",
-      tags: ["root"],
+      tags: ["GENERAL"],
     },
     response: {
       200: t.String({
