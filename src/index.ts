@@ -6,6 +6,13 @@ import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
 import { envService } from "./utility/env/env.service";
 
+// Extend Request type with startTime property
+declare global {
+  interface Request {
+    startTime?: number;
+  }
+}
+
 ////////////////////////////////
 // Load middlewares           //
 ////////////////////////////////
@@ -25,22 +32,24 @@ import chatCompletionsService from "./routes/ai/chat.completions/chat.completion
 ////////////////////////////////
 
 const logRequest = (app: Elysia) => {
-  return app.onRequest(({ request }) => {
-    const startTime = performance.now();
-    logger.info(
-      `Incoming ${request.method} request to ${request.url} from IP ${
-        request.headers.get("x-forwarded-for") || request.headers.get("host")
-      }`
-    );
-    return () => {
-      const duration = Math.round(performance.now() - startTime);
+  return app
+    .onRequest(({ request }) => {
+      const startTime = performance.now();
       logger.info(
-        `Completed ${request.method} ${request.url} in ${duration}ms from IP ${
+        `Incoming ${request.method} request to ${request.url} from IP ${
           request.headers.get("x-forwarded-for") || request.headers.get("host")
         }`
       );
-    };
-  });
+      request.startTime = startTime;
+    })
+    .onAfterHandle(({ request, set }) => {
+      const duration = Math.round(performance.now() - (request.startTime || 0));
+      logger.info(
+        `Completed ${request.method} ${request.url} in ${duration}ms from IP ${
+          request.headers.get("x-forwarded-for") || request.headers.get("host")
+        } Code: ${set.status}`
+      );
+    });
 };
 
 const app = new Elysia()
@@ -61,10 +70,10 @@ const app = new Elysia()
           description: "API documentation for the Apis.Rocks application",
         },
         tags: [
-          { name: "root", description: "Root endpoints" },
-          { name: "health", description: "Health check endpoints" },
-          { name: "cat", description: "Cat related endpoints" },
-          { name: "models", description: "AI models related endpoints" },
+          { name: "GENERAL", description: "Root endpoints" },
+          { name: "HEALTH", description: "Health check endpoints" },
+          { name: "MISCELLANEOUS", description: "Cat related endpoints" },
+          { name: "AI", description: "AI models related endpoints" },
         ],
       },
     })
