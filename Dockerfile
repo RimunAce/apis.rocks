@@ -2,11 +2,11 @@ FROM oven/bun:latest
 
 WORKDIR /app
 
-COPY app/package.json app/bun.lockb* ./
+COPY package.json bun.lockb* ./
 
 RUN bun install --frozen-lockfile
 
-COPY app/ ./
+COPY . ./
 
 ENV NODE_ENV=production
 ENV PORT=3000
