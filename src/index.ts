@@ -6,7 +6,6 @@ import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
 import { envService } from "./utility/env/env.service";
 
-// Extend Request type with startTime property
 declare global {
   interface Request {
     startTime?: number;
