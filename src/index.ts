@@ -70,7 +70,7 @@ const app = new Elysia()
     })
   )
   .use(logRequest) // Request logging middleware
-  .use(compressionMiddleware) // Compression Middleware - Gzip
+  .use(compressionMiddleware) // Compression
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
   .use(healthService) // Health: "/health"
