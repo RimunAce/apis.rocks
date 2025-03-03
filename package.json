@@ -1,5 +1,6 @@
 {
-  "name": "app",
+  "name": "apis.rocks",
+  "description": "The API for Apis.Rocks",
   "version": "1.0.50",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -10,6 +11,7 @@
     "@elysiajs/cors": "^1.2.0",
     "@elysiajs/eden": "^1.2.0",
     "@elysiajs/swagger": "^1.2.2",
+    "apis.rocks": "file:",
     "app": "file:",
     "elysia": "^1.2.24",
     "winston": "^3.17.0",
