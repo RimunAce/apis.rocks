@@ -3,6 +3,7 @@
 //////////////////////////////
 import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
+import { swagger } from "@elysiajs/swagger";
 import { envService } from "./utility/env/env.service";
 
 ////////////////////////////////
@@ -48,6 +49,24 @@ const app = new Elysia()
       origin: "*",
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  )
+  .use(
+    swagger({
+      path: "/docs",
+      documentation: {
+        info: {
+          title: "Apis.Rocks",
+          version: "1.0.0",
+          description: "API documentation for the Apis.Rocks application",
+        },
+        tags: [
+          { name: "root", description: "Root endpoints" },
+          { name: "health", description: "Health check endpoints" },
+          { name: "cat", description: "Cat related endpoints" },
+          { name: "models", description: "AI models related endpoints" },
+        ],
+      },
     })
   )
   .use(logRequest) // Request logging middleware
