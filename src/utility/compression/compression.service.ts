@@ -1,7 +1,6 @@
 import { Elysia } from "elysia";
 import zlib from "zlib";
 
-// Compression logic will be implemented here
 const compressResponse = async (
   response: Response,
   req: Request

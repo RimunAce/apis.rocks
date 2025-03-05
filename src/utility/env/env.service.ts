@@ -5,6 +5,13 @@ export const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(["development", "production"]).default("development"),
   OPENROUTER_KEY: z.string().optional(),
+  DATABASE_TYPE: z
+    .enum(["supabase", "mysql", "postgres", "mongodb"])
+    .default("supabase"),
+  SUPABASE_URI: z.string().optional(),
+  SUPABASE_KEY: z.string().optional(),
+  UPSTASH_REDIS_URL: z.string().optional(),
+  UPSTASH_REDIS_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

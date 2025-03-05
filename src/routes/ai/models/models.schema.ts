@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const ModelParamsSchema = z.object({
   id: z.string(),
@@ -6,10 +6,19 @@ export const ModelParamsSchema = z.object({
 
 export const ModelsListSchema = z.object({
   object: z.string(),
-  data: z.array(z.object({
-    id: z.string(),
-    object: z.string(),
-    created: z.number(),
-    owned_by: z.string(),
-  })),
+  data: z.array(
+    z.object({
+      id: z.string(),
+      object: z.string(),
+      created: z.number(),
+      owned_by: z.string(),
+      pricing: z
+        .object({
+          type: z.string(),
+          coefficent: z.number(),
+        })
+        .optional(),
+      access: z.string().optional(),
+    })
+  ),
 });
