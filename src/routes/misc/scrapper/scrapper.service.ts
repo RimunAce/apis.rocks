@@ -34,7 +34,7 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
           const response = await fetch(
             `${envService.get("SCRAPPER_URL")}?url=${encodeURIComponent(
               query.url
-            )}`,
+            )}&html=${query.html ? query.html : true}`,
             {
               signal: controller.signal,
             }
@@ -50,6 +50,13 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
               error: `Scrapper API error: ${response.status}`,
               details: errorText,
             };
+          }
+
+          // If html parameter is true, return the full HTML content
+          if (query.html === true) {
+            const htmlContent = await response.clone().text();
+            set.headers["Content-Type"] = "text/html";
+            return htmlContent;
           }
 
           const data = await response.json();
@@ -83,12 +90,13 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
     {
       query: t.Object({
         url: t.Optional(t.String()),
+        html: t.Optional(t.BooleanString()),
       }),
       detail: {
         tags: ["MISCELLANEOUS"],
         summary: "Scrape content from a URL",
         description:
-          "Fetches and scrapes content from the provided URL using an external scrapper service. Returns structured data about the webpage including content, metadata, and semantic analysis.",
+          "Fetches and scrapes content from the provided URL using an external scrapper service. Returns structured data about the webpage including content, metadata, and semantic analysis. Default to only sending HTML response otherwise stated.",
         responses: {
           200: {
             description: "Successfully scraped content",
@@ -118,6 +126,9 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
                     })
                   ),
                 }),
+              },
+              "text/html": {
+                schema: t.String(),
               },
             },
           },
