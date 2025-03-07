@@ -17,7 +17,7 @@ const aiRequestService = new AiRequestService(providersPath);
 
 export const createChatCompletionsController = () => {
   return new Elysia().post(
-    "/chat/completions",
+    "/v1/chat/completions",
     async ({
       body,
       set,

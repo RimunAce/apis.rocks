@@ -14,7 +14,7 @@ const validatedModels = validateModelsList(models).data;
 
 const modelsService = new Elysia()
   .get(
-    "/models",
+    "/v1/models",
     () => {
       return {
         object: "list",
@@ -43,7 +43,7 @@ const modelsService = new Elysia()
     }
   )
   .get(
-    "/models/:id",
+    "/v1/models/:id",
     ({ params: { id } }: { params: { id: string } }) => {
       const model = validatedModels.find((model) => model.id === id);
       if (!model) throw new Error("Model not found");

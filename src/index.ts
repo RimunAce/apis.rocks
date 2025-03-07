@@ -200,8 +200,8 @@ const app = new Elysia()
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
   .use(healthService) // Health: "/health"
-  .use(modelsService) // Models: "/models"
-  .use(chatCompletionsService) // Chat Completions: "/chat/completions"
+  .use(modelsService) // Models: "/v1/models"
+  .use(chatCompletionsService) // Chat Completions: "/v1/chat/completions"
   .use(adminService) // Admin: "/admin"
   .listen(envService.get("PORT"));
 

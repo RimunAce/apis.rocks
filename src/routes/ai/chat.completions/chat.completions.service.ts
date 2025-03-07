@@ -29,7 +29,7 @@ const getModelCoefficient = (model: string): number => {
 };
 
 // POST endpoint for chat completions
-const chatCompletionsService = new Elysia({ prefix: "/chat/completions" })
+const chatCompletionsService = new Elysia({ prefix: "/v1/chat/completions" })
   .use(auth) // Oh hey! If you use this decorator, you are explicity asking this endpoint to be protected by the auth middleware! Just saying
   .post(
     "",
