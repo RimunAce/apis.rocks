@@ -34,7 +34,7 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
           const response = await fetch(
             `${envService.get("SCRAPPER_URL")}?url=${encodeURIComponent(
               query.url
-            )}&html=${query.html ? query.html : true}`,
+            )}&html=true`,
             {
               signal: controller.signal,
             }
@@ -52,15 +52,10 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
             };
           }
 
-          // If html parameter is true, return the full HTML content
-          if (query.html === true) {
-            const htmlContent = await response.clone().text();
-            set.headers["Content-Type"] = "text/html";
-            return htmlContent;
-          }
-
-          const data = await response.json();
-          return data;
+          // Always return the full HTML content
+          const htmlContent = await response.text();
+          set.headers["Content-Type"] = "text/html";
+          return htmlContent;
         } catch (error: any) {
           clearTimeout(timeoutId);
 
@@ -90,43 +85,16 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
     {
       query: t.Object({
         url: t.Optional(t.String()),
-        html: t.Optional(t.BooleanString()),
       }),
       detail: {
         tags: ["MISCELLANEOUS"],
         summary: "Scrape content from a URL",
         description:
-          "Fetches and scrapes content from the provided URL using an external scrapper service. Returns structured data about the webpage including content, metadata, and semantic analysis. Default to only sending HTML response otherwise stated.",
+          "Fetches and scrapes content from the provided URL using an external scrapper service. Returns HTML content of the webpage.",
         responses: {
           200: {
             description: "Successfully scraped content",
             content: {
-              "application/json": {
-                schema: t.Object({
-                  success: t.Boolean(),
-                  url: t.String(),
-                  data: t.Object({
-                    title: t.String(),
-                    metaDescription: t.Optional(t.String()),
-                    h1Tags: t.Array(t.String()),
-                    content: t.String(),
-                  }),
-                  structuredData: t.Optional(
-                    t.Object({
-                      structured: t.Boolean(),
-                      data: t.Object({
-                        pageType: t.Optional(t.String()),
-                        mainTopic: t.Optional(t.String()),
-                        keyInformation: t.Optional(t.Array(t.String())),
-                        entities: t.Optional(t.Array(t.String())),
-                        sentiment: t.Optional(t.String()),
-                        categories: t.Optional(t.Array(t.String())),
-                        summary: t.Optional(t.String()),
-                      }),
-                    })
-                  ),
-                }),
-              },
               "text/html": {
                 schema: t.String(),
               },
