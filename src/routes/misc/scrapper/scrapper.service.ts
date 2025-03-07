@@ -88,22 +88,33 @@ const scrapperService = new Elysia({ prefix: "/scrapper" })
         tags: ["MISCELLANEOUS"],
         summary: "Scrape content from a URL",
         description:
-          "Fetches and scrapes content from the provided URL using an external scrapper service",
+          "Fetches and scrapes content from the provided URL using an external scrapper service. Returns structured data about the webpage including content, metadata, and semantic analysis.",
         responses: {
           200: {
             description: "Successfully scraped content",
             content: {
               "application/json": {
                 schema: t.Object({
-                  title: t.Optional(t.String()),
-                  content: t.Optional(t.String()),
-                  metadata: t.Optional(
+                  success: t.Boolean(),
+                  url: t.String(),
+                  data: t.Object({
+                    title: t.String(),
+                    metaDescription: t.Optional(t.String()),
+                    h1Tags: t.Array(t.String()),
+                    content: t.String(),
+                  }),
+                  structuredData: t.Optional(
                     t.Object({
-                      description: t.Optional(t.String()),
-                      image: t.Optional(t.String()),
-                      favicon: t.Optional(t.String()),
-                      siteName: t.Optional(t.String()),
-                      hostname: t.Optional(t.String()),
+                      structured: t.Boolean(),
+                      data: t.Object({
+                        pageType: t.Optional(t.String()),
+                        mainTopic: t.Optional(t.String()),
+                        keyInformation: t.Optional(t.Array(t.String())),
+                        entities: t.Optional(t.Array(t.String())),
+                        sentiment: t.Optional(t.String()),
+                        categories: t.Optional(t.Array(t.String())),
+                        summary: t.Optional(t.String()),
+                      }),
                     })
                   ),
                 }),
