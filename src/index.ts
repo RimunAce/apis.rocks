@@ -27,7 +27,7 @@ import rootService from "./routes/root/root.service";
 import modelsService from "./routes/ai/models/models.service";
 import chatCompletionsService from "./routes/ai/chat.completions/chat.completions.service";
 import adminService from "./routes/admin/admin.service";
-
+import scrapperService from "./routes/misc/scrapper/scrapper.service";
 ////////////////////////////////
 // Setting Up/Starting Up     //
 ////////////////////////////////
@@ -199,11 +199,15 @@ const app = new Elysia()
   .use(compressionMiddleware) // Compression. A must
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
+  .use(scrapperService) // Scrapper: "/scrapper"
   .use(healthService) // Health: "/health"
   .use(modelsService) // Models: "/v1/models"
   .use(chatCompletionsService) // Chat Completions: "/v1/chat/completions"
   .use(adminService) // Admin: "/admin"
-  .listen(envService.get("PORT"));
+  .listen({
+    port: envService.get("PORT"),
+    idleTimeout: 65,
+  });
 
 logger.info(
   `🦊 Elysia running in ${envService.get(
