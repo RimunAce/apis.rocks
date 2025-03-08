@@ -12,14 +12,14 @@ RUN apt-get update && \
 # Verify FFmpeg installation
 RUN ffmpeg -version && yt-dlp --version
 
+# Create downloads directory for MP3 files
+RUN mkdir -p ./downloads && chmod 777 ./downloads
+
 COPY package.json bun.lockb* ./
 
 RUN bun install --frozen-lockfile
 
 COPY . ./
-
-# Create downloads directory for MP3 files in the correct location
-RUN mkdir -p ./src/routes/youtube/downloads && chmod 777 ./src/routes/youtube/downloads
 
 ENV NODE_ENV=production
 ENV PORT=3000
