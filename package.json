@@ -18,6 +18,7 @@
     "apis.rocks": "file:",
     "app": "file:",
     "elysia": "^1.2.25",
+    "gimmeytmp3": "^1.0.3",
     "tiktoken": "^1.0.20",
     "winston": "^3.17.0",
     "zlib": "^1.0.5",

@@ -13,6 +13,7 @@ export const envSchema = z.object({
   UPSTASH_REDIS_URL: z.string().optional(),
   UPSTASH_REDIS_TOKEN: z.string().optional(),
   SCRAPPER_URL: z.string().optional(),
+  BUNNYCDN_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

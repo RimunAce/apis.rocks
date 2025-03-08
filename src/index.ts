@@ -28,6 +28,8 @@ import modelsService from "./routes/ai/models/models.service";
 import chatCompletionsService from "./routes/ai/chat.completions/chat.completions.service";
 import adminService from "./routes/admin/admin.service";
 import scrapperService from "./routes/misc/scrapper/scrapper.service";
+import { mp3Service } from "./routes/youtube/mp3.service";
+
 ////////////////////////////////
 // Setting Up/Starting Up     //
 ////////////////////////////////
@@ -67,7 +69,7 @@ const app = new Elysia()
       documentation: {
         info: {
           title: "Apis.Rocks API",
-          version: "1.0.0",
+          version: "1.1.0",
           description:
             "API documentation for the Apis.Rocks application with authentication system",
           contact: {
@@ -78,6 +80,7 @@ const app = new Elysia()
         tags: [
           { name: "GENERAL", description: "Root endpoints" },
           { name: "HEALTH", description: "Health check endpoints" },
+          { name: "YOUTUBE", description: "YouTube related endpoints" },
           { name: "MISCELLANEOUS", description: "Cat related endpoints" },
           { name: "AI", description: "AI models related endpoints" },
           {
@@ -199,6 +202,7 @@ const app = new Elysia()
   .use(compressionMiddleware) // Compression. A must
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
+  .use(mp3Service) // Misc: "/mp3"
   .use(scrapperService) // Scrapper: "/scrapper"
   .use(healthService) // Health: "/health"
   .use(modelsService) // Models: "/v1/models"
