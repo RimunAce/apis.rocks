@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
+    "build": "bun build src/cluster.ts src/index.ts --outdir ./dist --target bun",
+    "prod": "NODE_ENV=production bun run dist/cluster.js",
     "migrate": "bun run src/utility/database/migrate.ts",
     "test:rate-limit": "bun run src/utility/redis/redis.test.ts",
     "test:tokenization": "bun run src/utility/tokenization/tokenization.test.ts"

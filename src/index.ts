@@ -55,7 +55,10 @@ const logRequest = (app: Elysia) => {
     });
 };
 
-const app = new Elysia()
+const app = new Elysia({
+  nativeStaticResponse: true,
+  precompile: envService.get("NODE_ENV") === "production",
+})
   .use(
     cors({
       origin: "*",
@@ -190,16 +193,18 @@ const app = new Elysia()
 
     if (error instanceof Error) {
       errorMessage = error.message;
-    } else if (typeof error === "object" && error !== null) {
+    } else if (error != null) {
       errorMessage = String(error);
     }
+
+    logger.error(`Error: ${errorMessage}`);
 
     return {
       error: errorMessage,
     };
   })
+  .use(compressionMiddleware) // Compression.
   .use(logRequest) // Request logging middleware
-  .use(compressionMiddleware) // Compression. A must
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
   .use(mp3Service) // Misc: "/mp3"
@@ -211,6 +216,9 @@ const app = new Elysia()
   .listen({
     port: envService.get("PORT"),
     idleTimeout: 65,
+    maxRequestBodySize: 1024 * 1024 * 10, // Max request body size
+    development: envService.get("NODE_ENV") === "development",
+    reusePort: true, // Better for load balancing across multiple processes
   });
 
 logger.info(
