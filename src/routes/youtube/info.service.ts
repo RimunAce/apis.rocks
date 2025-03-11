@@ -26,7 +26,13 @@ const extractVideoId = (url: string): string | null => {
       return urlObj.pathname.substring(1);
     }
 
-    if (urlObj.hostname.includes("youtube.com")) {
+    const validDomains = [
+      "youtube.com",
+      "www.youtube.com",
+      "m.youtube.com",
+      "music.youtube.com",
+    ];
+    if (validDomains.some((domain) => urlObj.hostname === domain)) {
       const videoId = urlObj.searchParams.get("v");
       if (videoId) return videoId;
 
