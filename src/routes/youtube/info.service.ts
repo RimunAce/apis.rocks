@@ -3,6 +3,8 @@ import logger from "../../utility/logger/logger.service";
 import * as https from "node:https";
 import sanitizeHtml from "sanitize-html";
 
+// The guild has authorized me to hunt that monster
+
 const isValidYoutubeUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
@@ -107,6 +109,75 @@ interface VideoInfo {
 }
 
 const extractVideoInfo = (html: string): VideoInfo => {
+  let ytInitialData = null;
+  let ytInitialPlayerResponse = null;
+
+  const dataRegex = /window\["ytInitialData"\]\s*=\s*({.*?});/s;
+  const dataMatch =
+    html.match(dataRegex) || html.match(/var\s+ytInitialData\s*=\s*({.*?});/s);
+
+  if (dataMatch && dataMatch[1]) {
+    try {
+      ytInitialData = JSON.parse(dataMatch[1]);
+    } catch (e) {
+      logger.error(`Failed to parse ytInitialData: ${e}`);
+    }
+  }
+
+  const playerRegex = /window\["ytInitialPlayerResponse"\]\s*=\s*({.*?});/s;
+  const playerMatch =
+    html.match(playerRegex) ||
+    html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.*?});/s);
+
+  if (playerMatch && playerMatch[1]) {
+    try {
+      ytInitialPlayerResponse = JSON.parse(playerMatch[1]);
+    } catch (e) {
+      logger.error(`Failed to parse ytInitialPlayerResponse: ${e}`);
+
+      const scriptTagRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+      let scriptMatch;
+
+      while ((scriptMatch = scriptTagRegex.exec(html)) !== null) {
+        const scriptContent = scriptMatch[1];
+        if (
+          scriptContent.includes('"videoDetails"') &&
+          scriptContent.includes('"playerConfig"')
+        ) {
+          try {
+            const trimmedContent = scriptContent.trim();
+            if (
+              trimmedContent.startsWith("{") &&
+              trimmedContent.endsWith("}")
+            ) {
+              ytInitialPlayerResponse = JSON.parse(trimmedContent);
+              break;
+            }
+          } catch (err) {
+            logger.error(`Failed to parse script tag JSON: ${err}`);
+          }
+        }
+      }
+    }
+  }
+
+  if (!ytInitialPlayerResponse && !ytInitialData) {
+    const jsonScriptRegex =
+      /<script[^>]+type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+    while ((match = jsonScriptRegex.exec(html)) !== null) {
+      try {
+        const jsonData = JSON.parse(match[1]);
+        if (jsonData.playerResponse) {
+          ytInitialPlayerResponse = jsonData.playerResponse;
+          break;
+        }
+      } catch (e) {
+        logger.error(`Failed to parse JSON script tag: ${e}`);
+      }
+    }
+  }
+
   const info: VideoInfo = {
     id: "",
     url: "",
@@ -124,86 +195,6 @@ const extractVideoInfo = (html: string): VideoInfo => {
   };
 
   try {
-    let ytInitialData = null;
-    const dataRegex = /window\["ytInitialData"\]\s*=\s*({.*?});/s;
-    const dataMatch =
-      html.match(dataRegex) ||
-      html.match(/var\s+ytInitialData\s*=\s*({.*?});/s);
-
-    if (dataMatch && dataMatch[1]) {
-      try {
-        ytInitialData = JSON.parse(dataMatch[1]);
-      } catch (e) {
-        logger.error(`Failed to parse ytInitialData: ${e}`);
-      }
-    }
-
-    let ytInitialPlayerResponse = null;
-    const playerRegex = /window\["ytInitialPlayerResponse"\]\s*=\s*({.*?});/s;
-    const playerMatch =
-      html.match(playerRegex) ||
-      html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.*?});/s);
-
-    if (playerMatch && playerMatch[1]) {
-      try {
-        ytInitialPlayerResponse = JSON.parse(playerMatch[1]);
-      } catch (e) {
-        logger.error(`Failed to parse ytInitialPlayerResponse: ${e}`);
-
-        const cleanHtml = sanitizeHtml(html, {
-          allowedTags: [],
-          allowedAttributes: {}
-        });
-        const scriptTags = cleanHtml.match(/<script[^>]*>(\{.*?\})<\/script>/gs);
-        if (scriptTags) {
-          for (const script of scriptTags) {
-            if (
-              script.includes('"videoDetails"') &&
-              script.includes('"playerConfig"')
-            ) {
-              try {
-                const jsonContent = script.replace(
-                  /<script[^>]*>([\s\S]*?)<\/script>/g,
-                  "$1"
-                );
-
-                if (
-                  jsonContent.trim().startsWith("{") &&
-                  jsonContent.trim().endsWith("}")
-                ) {
-                  ytInitialPlayerResponse = JSON.parse(jsonContent);
-                  break;
-                } else {
-                  logger.error(
-                    "Script content does not appear to be valid JSON"
-                  );
-                }
-              } catch (err) {
-                logger.error(`Failed to parse script tag JSON: ${err}`);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (!ytInitialPlayerResponse && !ytInitialData) {
-      const jsonScriptRegex =
-        /<script[^>]+type="application\/json"[^>]*>(.*?)<\/script>/gs;
-      let match;
-      while ((match = jsonScriptRegex.exec(html)) !== null) {
-        try {
-          const jsonData = JSON.parse(match[1]);
-          if (jsonData.playerResponse) {
-            ytInitialPlayerResponse = jsonData.playerResponse;
-            break;
-          }
-        } catch (e) {
-          logger.error(`Failed to parse JSON script tag: ${e}`);
-        }
-      }
-    }
-
     if (ytInitialPlayerResponse) {
       const videoDetails = ytInitialPlayerResponse.videoDetails;
       if (videoDetails) {
@@ -306,6 +297,19 @@ const extractVideoInfo = (html: string): VideoInfo => {
   return info;
 };
 
+const sanitizeText = (text: string | number | undefined): string => {
+  if (text === undefined || text === null) {
+    return "";
+  }
+
+  const stringValue = typeof text === "number" ? text.toString() : text;
+
+  return sanitizeHtml(stringValue, {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
+};
+
 export const infoService = new Elysia().get(
   "/youtube/info",
   async ({ query, set }) => {
@@ -348,8 +352,30 @@ export const infoService = new Elysia().get(
 
       const videoInfo = extractVideoInfo(html);
 
-      videoInfo.id = videoId;
-      videoInfo.url = videoUrl;
+      videoInfo.id = sanitizeText(videoId);
+      videoInfo.url = sanitizeText(videoUrl);
+
+      videoInfo.title = sanitizeText(videoInfo.title);
+      videoInfo.description = sanitizeText(videoInfo.description);
+      videoInfo.channelName = sanitizeText(videoInfo.channelName);
+      videoInfo.channelId = sanitizeText(videoInfo.channelId);
+      videoInfo.channelUrl = sanitizeText(videoInfo.channelUrl);
+      videoInfo.publishDate = sanitizeText(videoInfo.publishDate);
+
+      videoInfo.tags = videoInfo.tags.map((tag) => sanitizeText(tag));
+
+      videoInfo.thumbnails = videoInfo.thumbnails.map((thumbnail) => ({
+        url: sanitizeText(thumbnail.url),
+        width: thumbnail.width,
+        height: thumbnail.height,
+      }));
+
+      if (videoInfo.category) {
+        videoInfo.category = sanitizeText(videoInfo.category);
+      }
+      if (videoInfo.formattedDuration) {
+        videoInfo.formattedDuration = sanitizeText(videoInfo.formattedDuration);
+      }
 
       return {
         success: true as const,
@@ -365,7 +391,9 @@ export const infoService = new Elysia().get(
       set.status = 500;
       return {
         success: false,
-        error: `Failed to fetch video information: ${errorMessage}`,
+        error: `Failed to fetch video information: ${sanitizeText(
+          errorMessage
+        )}`,
       };
     }
   },
