@@ -135,10 +135,14 @@ const extractVideoInfo = (html: string): VideoInfo => {
     } catch (e) {
       logger.error(`Failed to parse ytInitialPlayerResponse: ${e}`);
 
+      const sanitizedHtml = sanitizeHtml(html, {
+        allowedTags: sanitizeHtml.defaults.allowedTags.filter(tag => tag !== 'script'),
+      });
+
       const scriptTagRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
       let scriptMatch;
 
-      while ((scriptMatch = scriptTagRegex.exec(html)) !== null) {
+      while ((scriptMatch = scriptTagRegex.exec(sanitizedHtml)) !== null) {
         const scriptContent = scriptMatch[1];
         if (
           scriptContent.includes('"videoDetails"') &&
