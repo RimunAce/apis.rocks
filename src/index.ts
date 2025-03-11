@@ -29,6 +29,7 @@ import chatCompletionsService from "./routes/ai/chat.completions/chat.completion
 import adminService from "./routes/admin/admin.service";
 import scrapperService from "./routes/misc/scrapper/scrapper.service";
 import { mp3Service } from "./routes/youtube/mp3.service";
+import { infoService } from "./routes/youtube/info.service";
 
 ////////////////////////////////
 // Setting Up/Starting Up     //
@@ -207,7 +208,8 @@ const app = new Elysia({
   .use(logRequest) // Request logging middleware
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
-  .use(mp3Service) // Misc: "/mp3"
+  .use(mp3Service) // YouTube: "/youtube/mp3"
+  .use(infoService) // YouTube: "/youtube/info"
   .use(scrapperService) // Scrapper: "/scrapper"
   .use(healthService) // Health: "/health"
   .use(modelsService) // Models: "/v1/models"
