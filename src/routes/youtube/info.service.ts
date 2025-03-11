@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import logger from "../../utility/logger/logger.service";
 import * as https from "node:https";
+import sanitizeHtml from "sanitize-html";
 
 const isValidYoutubeUrl = (url: string): boolean => {
   try {
@@ -149,7 +150,11 @@ const extractVideoInfo = (html: string): VideoInfo => {
       } catch (e) {
         logger.error(`Failed to parse ytInitialPlayerResponse: ${e}`);
 
-        const scriptTags = html.match(/<script[^>]*>(\{.*?\})<\/script>/gs);
+        const cleanHtml = sanitizeHtml(html, {
+          allowedTags: [],
+          allowedAttributes: {}
+        });
+        const scriptTags = cleanHtml.match(/<script[^>]*>(\{.*?\})<\/script>/gs);
         if (scriptTags) {
           for (const script of scriptTags) {
             if (
