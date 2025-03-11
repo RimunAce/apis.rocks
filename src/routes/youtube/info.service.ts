@@ -157,11 +157,22 @@ const extractVideoInfo = (html: string): VideoInfo => {
               script.includes('"playerConfig"')
             ) {
               try {
-                const jsonContent = script
-                  .replace(/<script[^>]*>/, "")
-                  .replace(/<\/script>/, "");
-                ytInitialPlayerResponse = JSON.parse(jsonContent);
-                break;
+                const jsonContent = script.replace(
+                  /<script[^>]*>([\s\S]*?)<\/script>/g,
+                  "$1"
+                );
+
+                if (
+                  jsonContent.trim().startsWith("{") &&
+                  jsonContent.trim().endsWith("}")
+                ) {
+                  ytInitialPlayerResponse = JSON.parse(jsonContent);
+                  break;
+                } else {
+                  logger.error(
+                    "Script content does not appear to be valid JSON"
+                  );
+                }
               } catch (err) {
                 logger.error(`Failed to parse script tag JSON: ${err}`);
               }
