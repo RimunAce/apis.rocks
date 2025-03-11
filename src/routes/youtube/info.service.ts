@@ -136,10 +136,12 @@ const extractVideoInfo = (html: string): VideoInfo => {
       logger.error(`Failed to parse ytInitialPlayerResponse: ${e}`);
 
       const sanitizedHtml = sanitizeHtml(html, {
-        allowedTags: sanitizeHtml.defaults.allowedTags.filter(tag => tag !== 'script'),
+        allowedTags: sanitizeHtml.defaults.allowedTags.filter(
+          (tag) => tag !== "script"
+        ),
       });
 
-      const scriptTagRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+      const scriptTagRegex = /<script[^>]*>([\s\S]*?)<\/script\s*>/gi;
       let scriptMatch;
 
       while ((scriptMatch = scriptTagRegex.exec(sanitizedHtml)) !== null) {
@@ -167,7 +169,7 @@ const extractVideoInfo = (html: string): VideoInfo => {
 
   if (!ytInitialPlayerResponse && !ytInitialData) {
     const jsonScriptRegex =
-      /<script[^>]+type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi;
+      /<script[^>]+type="application\/json"[^>]*>([\s\S]*?)<\/script\s*>/gi;
     let match;
     while ((match = jsonScriptRegex.exec(html)) !== null) {
       try {
