@@ -1,7 +1,7 @@
 {
   "name": "apis.rocks",
   "description": "The API for Apis.Rocks",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",

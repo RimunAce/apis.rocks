@@ -32,7 +32,7 @@ const DDOS_PROTECTION_ENABLED = Boolean(
 );
 
 // Routes to exclude from DDoS protection
-const EXCLUDED_ROUTES = envService.get("DDOS_PROTECTED_ROUTES");
+const EXCLUDED_ROUTES = envService.get("DDOS_EXCLUDED_ROUTES");
 
 class DDoSProtectionService {
   constructor() {
