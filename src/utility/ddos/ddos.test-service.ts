@@ -32,7 +32,7 @@ const DDOS_PROTECTION_ENABLED = Boolean(
 );
 
 // Routes to exclude from DDoS protection
-const EXCLUDED_ROUTES = ["/health", "/docs", "/admin"];
+const EXCLUDED_ROUTES = envService.get("DDOS_PROTECTED_ROUTES");
 
 class DDoSProtectionService {
   constructor() {
@@ -114,7 +114,14 @@ class DDoSProtectionService {
    * Generally speaking, I set to none
    */
   isExcludedRoute(pathname: string): boolean {
-    return EXCLUDED_ROUTES.some((route) => pathname.startsWith(route));
+    if (Array.isArray(EXCLUDED_ROUTES)) {
+      return EXCLUDED_ROUTES.some((route: string) =>
+        pathname.startsWith(route)
+      );
+    } else if (typeof EXCLUDED_ROUTES === "string") {
+      return pathname.startsWith(EXCLUDED_ROUTES);
+    }
+    return false;
   }
 
   /**

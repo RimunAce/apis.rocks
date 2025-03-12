@@ -11,6 +11,7 @@ export const mockEnv = {
   DDOS_THRESHOLD_REQUESTS: "100",
   DDOS_TIME_WINDOW_SECONDS: "10",
   DDOS_BAN_DURATION_SECONDS: "300",
+  DDOS_EXCLUDED_ROUTES: [""],
 };
 
 // Mock environment service

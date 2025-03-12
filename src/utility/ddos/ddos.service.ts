@@ -12,9 +12,13 @@ const DDOS_ERROR_MESSAGE = {
 const DDOS_THRESHOLD_REQUESTS = envService.get("DDOS_THRESHOLD_REQUESTS");
 const DDOS_TIME_WINDOW_SECONDS = envService.get("DDOS_TIME_WINDOW_SECONDS");
 const DDOS_BAN_DURATION_SECONDS = envService.get("DDOS_BAN_DURATION_SECONDS");
-const DDOS_PROTECTION_ENABLED = envService.get("DDOS_PROTECTION_ENABLED");
+const DDOS_PROTECTION_ENABLED =
+  envService.get("DDOS_PROTECTION_ENABLED") === true;
 
-const EXCLUDED_ROUTES = [""];
+// Routes that are excluded from DDoS protection
+const EXCLUDED_ROUTES: string[] = envService
+  .get("DDOS_EXCLUDED_ROUTES")
+  .filter((route) => route !== "");
 
 class DDoSProtectionService {
   constructor() {
@@ -23,18 +27,28 @@ class DDoSProtectionService {
       threshold: DDOS_THRESHOLD_REQUESTS,
       timeWindow: DDOS_TIME_WINDOW_SECONDS,
       banDuration: DDOS_BAN_DURATION_SECONDS,
+      excludedRoutes:
+        EXCLUDED_ROUTES.length > 0
+          ? EXCLUDED_ROUTES
+          : "None - all routes are protected",
     });
   }
 
   middleware = (app: Elysia) => {
     return app.derive(async ({ request, set }) => {
       if (!DDOS_PROTECTION_ENABLED) {
+        logger.info("DDoS protection is disabled");
         return { isDDoS: false };
       }
 
       const url = new URL(request.url);
+      const pathname = url.pathname;
 
-      if (this.isExcludedRoute(url.pathname)) {
+      logger.info(`Checking DDoS protection for path: ${pathname}`);
+
+      // Check if the route should be excluded from protection
+      if (this.isExcludedRoute(pathname)) {
+        logger.info(`Path ${pathname} is excluded from DDoS protection`);
         return { isDDoS: false };
       }
 
@@ -48,6 +62,10 @@ class DDoSProtectionService {
         logger.warn("Could not determine client IP, skipping DDoS check");
         return { isDDoS: false };
       }
+
+      logger.info(
+        `Checking DDoS protection for IP: ${clientIP}, path: ${pathname}`
+      );
 
       const isMarkedAsDDoS = await this.isIPMarkedAsDDoS(clientIP);
       if (isMarkedAsDDoS) {
@@ -63,6 +81,9 @@ class DDoSProtectionService {
       }
 
       const requestCount = await this.trackIPRequest(clientIP);
+      logger.info(
+        `Request count for IP ${clientIP}: ${requestCount}/${DDOS_THRESHOLD_REQUESTS}`
+      );
 
       if (requestCount > DDOS_THRESHOLD_REQUESTS) {
         logger.warn(
@@ -84,7 +105,30 @@ class DDoSProtectionService {
   };
 
   private isExcludedRoute(pathname: string): boolean {
-    return EXCLUDED_ROUTES.some((route) => pathname.startsWith(route));
+    // Special case for root route - always protect it
+    if (pathname === "/" || pathname === "") {
+      logger.info("Root route is always protected from DDoS attacks");
+      return false;
+    }
+
+    // Debug logging
+    logger.info(
+      `Checking if path ${pathname} is excluded from DDoS protection`
+    );
+    logger.info(`Excluded routes: ${JSON.stringify(EXCLUDED_ROUTES)}`);
+
+    // Check if the route should be excluded
+    const isExcluded = EXCLUDED_ROUTES.some((route) => {
+      if (route === "") return false; // Skip empty routes
+
+      const excluded = pathname.startsWith(route);
+      if (excluded) {
+        logger.info(`Path ${pathname} matches excluded route ${route}`);
+      }
+      return excluded;
+    });
+
+    return isExcluded;
   }
 
   private getClientIP(request: Request): string | null {

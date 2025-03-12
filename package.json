@@ -8,10 +8,15 @@
     "build": "bun build src/cluster.ts src/index.ts --outdir ./dist --target bun",
     "prod": "NODE_ENV=production bun run dist/cluster.js",
     "migrate": "bun run src/utility/database/migrate.ts",
+    "test:redis": "bun run src/utility/redis/redis.test.ts",
     "test:rate-limit": "bun run src/utility/redis/redis.test.ts",
     "test:tokenization": "bun run src/utility/tokenization/tokenization.test.ts",
     "test:ddos": "bun test src/utility/ddos/ddos.test.ts",
-    "test:ddos:manual": "bun run src/utility/ddos/ddos.manual-test.ts"
+    "test:ddos:config": "bun run src/utility/ddos/ddos-tools.ts check-config",
+    "test:ddos:service": "bun run src/utility/ddos/ddos-tools.ts test-service",
+    "test:ddos:redis": "bun run src/utility/ddos/ddos-tools.ts test-redis",
+    "test:ddos:root": "bun run src/utility/ddos/ddos-tools.ts test-root",
+    "test:ddos:load": "bun run src/utility/ddos/ddos-tools.ts load-test"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.2.0",
