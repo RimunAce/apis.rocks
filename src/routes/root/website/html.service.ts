@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { envService } from "../../../utility/env/env.service";
 import os from "node:os";
 
-const API_VERSION = "1.1.0";
+const API_VERSION = "1.2.0";
 
 const getSystemMetrics = () => {
   const uptimeSeconds = Math.floor(process.uptime());
@@ -380,7 +380,7 @@ const generateHtml = (metrics: ReturnType<typeof getSystemMetrics>) => {
 
 const htmlService = new Elysia().get(
   "/",
-  async ({ set }) => {
+  async ({ set, request }) => {
     const metrics = getSystemMetrics();
     const html = generateHtml(metrics);
 
@@ -398,6 +398,15 @@ const htmlService = new Elysia().get(
       200: t.String({
         description: "HTML content of the landing page",
       }),
+      429: t.Object(
+        {
+          error: t.String(),
+          message: t.String(),
+        },
+        {
+          description: "Rate limit exceeded",
+        }
+      ),
     },
   }
 );
