@@ -3,209 +3,129 @@ import logger from "../logger/logger.service";
 import redisService from "../redis/redis.service";
 import { envService } from "../env/env.service";
 
-const DDOS_ERROR_MESSAGE = {
-  error: "Too Many Requests",
-  message: "Your IP has been temporarily blocked due to suspicious activity",
-  status: 429,
+const config = {
+  ERROR_MESSAGE: {
+    error: "Too Many Requests",
+    message: "Your IP has been temporarily blocked due to suspicious activity",
+    status: 429,
+  },
+  THRESHOLD_REQUESTS: envService.get("DDOS_THRESHOLD_REQUESTS"),
+  TIME_WINDOW: envService.get("DDOS_TIME_WINDOW_SECONDS"),
+  BAN_DURATION: envService.get("DDOS_BAN_DURATION_SECONDS"),
+  ENABLED: envService.get("DDOS_PROTECTION_ENABLED") === true,
+  EXCLUDED_ROUTES: envService
+    .get("DDOS_EXCLUDED_ROUTES")
+    .filter((route) => route !== ""),
 };
 
-const DDOS_THRESHOLD_REQUESTS = envService.get("DDOS_THRESHOLD_REQUESTS");
-const DDOS_TIME_WINDOW_SECONDS = envService.get("DDOS_TIME_WINDOW_SECONDS");
-const DDOS_BAN_DURATION_SECONDS = envService.get("DDOS_BAN_DURATION_SECONDS");
-const DDOS_PROTECTION_ENABLED =
-  envService.get("DDOS_PROTECTION_ENABLED") === true;
+class IPTracker {
+  async track(ip: string): Promise<number> {
+    if (!redisService.isRedisAvailable()) return 0;
+    const redis = redisService.getRedisClient();
+    if (!redis) return 0;
 
-// Routes that are excluded from DDoS protection
-const EXCLUDED_ROUTES: string[] = envService
-  .get("DDOS_EXCLUDED_ROUTES")
-  .filter((route) => route !== "");
+    const now = Math.floor(Date.now() / 1000);
+    const windowKey = Math.floor(now / config.TIME_WINDOW);
+    const ipKey = `ddos:${ip}:${windowKey}`;
+
+    const count = await redis.incr(ipKey);
+    if (count === 1) await redis.expire(ipKey, config.TIME_WINDOW * 2);
+    return count;
+  }
+
+  async ban(ip: string): Promise<void> {
+    const redis = redisService.getRedisClient();
+    if (!redis) return;
+    await redis.set(`ddos:banned:${ip}`, "1", { ex: config.BAN_DURATION });
+  }
+
+  async isBanned(ip: string): Promise<boolean> {
+    const redis = redisService.getRedisClient();
+    if (!redis) return false;
+    return (await redis.exists(`ddos:banned:${ip}`)) === 1;
+  }
+}
+
+class RouteProtector {
+  isExcluded(pathname: string): boolean {
+    if (pathname === "/" || pathname === "") return false;
+    return config.EXCLUDED_ROUTES.some(
+      (route) => route !== "" && pathname.startsWith(route)
+    );
+  }
+
+  getClientIP(request: Request): string | null {
+    return (
+      request.headers.get("cf-connecting-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+      request.headers.get("host")
+    );
+  }
+}
 
 class DDoSProtectionService {
+  readonly ipTracker = new IPTracker();
+  private readonly routeProtector = new RouteProtector();
+
   constructor() {
     logger.info("DDoS protection service initialized", {
-      enabled: DDOS_PROTECTION_ENABLED,
-      threshold: DDOS_THRESHOLD_REQUESTS,
-      timeWindow: DDOS_TIME_WINDOW_SECONDS,
-      banDuration: DDOS_BAN_DURATION_SECONDS,
+      enabled: config.ENABLED,
+      threshold: config.THRESHOLD_REQUESTS,
+      timeWindow: config.TIME_WINDOW,
+      banDuration: config.BAN_DURATION,
       excludedRoutes:
-        EXCLUDED_ROUTES.length > 0
-          ? EXCLUDED_ROUTES
-          : "None - all routes are protected",
+        config.EXCLUDED_ROUTES.length > 0 ? config.EXCLUDED_ROUTES : "None",
     });
   }
 
   middleware = (app: Elysia) => {
     return app.derive(async ({ request, set }) => {
-      if (!DDOS_PROTECTION_ENABLED) {
-        logger.info("DDoS protection is disabled");
-        return { isDDoS: false };
-      }
+      if (!config.ENABLED) return { isDDoS: false };
 
-      const url = new URL(request.url);
-      const pathname = url.pathname;
+      const pathname = new URL(request.url).pathname;
+      if (this.routeProtector.isExcluded(pathname)) return { isDDoS: false };
+      if (!redisService.isRedisAvailable()) return { isDDoS: false };
 
-      logger.info(`Checking DDoS protection for path: ${pathname}`);
+      const clientIP = this.routeProtector.getClientIP(request);
+      if (!clientIP) return { isDDoS: false };
 
-      // Check if the route should be excluded from protection
-      if (this.isExcludedRoute(pathname)) {
-        logger.info(`Path ${pathname} is excluded from DDoS protection`);
-        return { isDDoS: false };
-      }
-
-      if (!redisService.isRedisAvailable()) {
-        logger.warn("Redis not available, DDoS protection disabled");
-        return { isDDoS: false };
-      }
-
-      const clientIP = this.getClientIP(request);
-      if (!clientIP) {
-        logger.warn("Could not determine client IP, skipping DDoS check");
-        return { isDDoS: false };
-      }
-
-      logger.info(
-        `Checking DDoS protection for IP: ${clientIP}, path: ${pathname}`
-      );
-
-      const isMarkedAsDDoS = await this.isIPMarkedAsDDoS(clientIP);
-      if (isMarkedAsDDoS) {
-        logger.warn(`Blocked DDoS attacker: ${clientIP}`);
+      if (await this.ipTracker.isBanned(clientIP)) {
         set.status = 429;
         set.headers = {
-          "Retry-After": DDOS_BAN_DURATION_SECONDS.toString(),
+          "Content-Type": "application/json",
+          "Retry-After": config.BAN_DURATION.toString(),
           "X-RateLimit-Reset": (
-            Math.floor(Date.now() / 1000) + DDOS_BAN_DURATION_SECONDS
+            Math.floor(Date.now() / 1000) + config.BAN_DURATION
           ).toString(),
-        } as Record<string, string>;
-        return DDOS_ERROR_MESSAGE;
+        };
+        return {
+          error: "Too Many Requests",
+          message:
+            "Your IP has been temporarily blocked due to suspicious activity",
+        };
       }
 
-      const requestCount = await this.trackIPRequest(clientIP);
-      logger.info(
-        `Request count for IP ${clientIP}: ${requestCount}/${DDOS_THRESHOLD_REQUESTS}`
-      );
-
-      if (requestCount > DDOS_THRESHOLD_REQUESTS) {
-        logger.warn(
-          `Potential DDoS attack detected from IP: ${clientIP}, request count: ${requestCount}`
-        );
-        await this.markIPAsDDoS(clientIP);
+      const requestCount = await this.ipTracker.track(clientIP);
+      if (requestCount > config.THRESHOLD_REQUESTS) {
+        await this.ipTracker.ban(clientIP);
         set.status = 429;
         set.headers = {
-          "Retry-After": DDOS_BAN_DURATION_SECONDS.toString(),
+          "Content-Type": "application/json",
+          "Retry-After": config.BAN_DURATION.toString(),
           "X-RateLimit-Reset": (
-            Math.floor(Date.now() / 1000) + DDOS_BAN_DURATION_SECONDS
+            Math.floor(Date.now() / 1000) + config.BAN_DURATION
           ).toString(),
-        } as Record<string, string>;
-        return DDOS_ERROR_MESSAGE;
+        };
+        return {
+          error: "Too Many Requests",
+          message:
+            "Your IP has been temporarily blocked due to suspicious activity",
+        };
       }
 
       return { isDDoS: false };
     });
   };
-
-  private isExcludedRoute(pathname: string): boolean {
-    // Special case for root route - always protect it
-    if (pathname === "/" || pathname === "") {
-      logger.info("Root route is always protected from DDoS attacks");
-      return false;
-    }
-
-    // Debug logging
-    logger.info(
-      `Checking if path ${pathname} is excluded from DDoS protection`
-    );
-    logger.info(`Excluded routes: ${JSON.stringify(EXCLUDED_ROUTES)}`);
-
-    // Check if the route should be excluded
-    const isExcluded = EXCLUDED_ROUTES.some((route) => {
-      if (route === "") return false; // Skip empty routes
-
-      const excluded = pathname.startsWith(route);
-      if (excluded) {
-        logger.info(`Path ${pathname} matches excluded route ${route}`);
-      }
-      return excluded;
-    });
-
-    return isExcluded;
-  }
-
-  private getClientIP(request: Request): string | null {
-    const cfConnectingIP = request.headers.get("cf-connecting-ip");
-    if (cfConnectingIP) return cfConnectingIP;
-
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    if (forwardedFor) {
-      const ips = forwardedFor.split(",");
-      return ips[0].trim();
-    }
-
-    const host = request.headers.get("host");
-    return host;
-  }
-
-  private async trackIPRequest(ip: string): Promise<number> {
-    if (!redisService.isRedisAvailable()) return 0;
-
-    try {
-      const redis = redisService.getRedisClient();
-      if (!redis) return 0;
-
-      const now = Math.floor(Date.now() / 1000);
-      const windowKey = Math.floor(now / DDOS_TIME_WINDOW_SECONDS);
-      const ipKey = `ddos:${ip}:${windowKey}`;
-
-      const count = await redis.incr(ipKey);
-
-      if (count === 1) {
-        await redis.expire(ipKey, DDOS_TIME_WINDOW_SECONDS * 2);
-      }
-
-      return count;
-    } catch (error) {
-      logger.error("Error tracking IP request count", { error, ip });
-      return 0;
-    }
-  }
-
-  private async markIPAsDDoS(ip: string): Promise<void> {
-    if (!redisService.isRedisAvailable()) return;
-
-    try {
-      const redis = redisService.getRedisClient();
-      if (!redis) return;
-
-      const banKey = `ddos:banned:${ip}`;
-      await redis.set(banKey, "1", { ex: DDOS_BAN_DURATION_SECONDS });
-
-      logger.warn(
-        `Marked IP as DDoS attacker: ${ip}, banned for ${DDOS_BAN_DURATION_SECONDS} seconds`
-      );
-    } catch (error) {
-      logger.error("Error marking IP as DDoS attacker", { error, ip });
-    }
-  }
-
-  private async isIPMarkedAsDDoS(ip: string): Promise<boolean> {
-    if (!redisService.isRedisAvailable()) return false;
-
-    try {
-      const redis = redisService.getRedisClient();
-      if (!redis) return false;
-
-      const banKey = `ddos:banned:${ip}`;
-      const isBanned = await redis.exists(banKey);
-      return isBanned === 1;
-    } catch (error) {
-      logger.error("Error checking if IP is marked as DDoS attacker", {
-        error,
-        ip,
-      });
-      return false;
-    }
-  }
 }
 
-const ddosProtectionService = new DDoSProtectionService();
-export default ddosProtectionService;
+export default new DDoSProtectionService();

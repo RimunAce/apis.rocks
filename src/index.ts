@@ -1,7 +1,7 @@
 ////////////////////////////////
 // Load Dependencies         //
 //////////////////////////////
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
 import { envService } from "./utility/env/env.service";
@@ -42,16 +42,16 @@ const logRequest = (app: Elysia) => {
       const startTime = performance.now();
       logger.info(
         `Incoming ${request.method} request to ${request.url} from IP ${
-          request.headers.get("x-forwarded-for") || request.headers.get("host")
+          request.headers.get("x-forwarded-for") ?? request.headers.get("host")
         }`
       );
       request.startTime = startTime;
     })
     .onAfterHandle(({ request, set }) => {
-      const duration = Math.round(performance.now() - (request.startTime || 0));
+      const duration = Math.round(performance.now() - (request.startTime ?? 0));
       logger.info(
         `Completed ${request.method} ${request.url} in ${duration}ms from IP ${
-          request.headers.get("x-forwarded-for") || request.headers.get("host")
+          request.headers.get("x-forwarded-for") ?? request.headers.get("host")
         } Code: ${set.status}`
       );
     });
@@ -186,7 +186,7 @@ const app = new Elysia({
       },
     })
   )
-  .onError(({ error, set }) => {
+  .onError(({ error, set }: { error: unknown; set: any }) => {
     if (!set.status || set.status === 200) {
       set.status = 500;
     }
@@ -197,7 +197,23 @@ const app = new Elysia({
     if (error instanceof Error) {
       errorMessage = error.message;
     } else if (error != null) {
-      errorMessage = String(error);
+      try {
+        errorMessage = JSON.stringify(error, null, 2);
+      } catch {
+        const errorObj =
+          typeof error === "object"
+            ? Object.getOwnPropertyNames(error).reduce(
+                (acc, key) => ({
+                  ...acc,
+                  [key]: (error as any)[key],
+                }),
+                {}
+              )
+            : error;
+        errorMessage =
+          JSON.stringify(errorObj) ||
+          `Unknown error: ${Object.prototype.toString.call(error)}`;
+      }
     }
 
     logger.error(`Error: ${errorMessage}`);
@@ -226,7 +242,7 @@ const app = new Elysia({
   });
 
 logger.info(
-  `🦊 Elysia running in ${envService.get(
+  `🎉 Apis.Rocks running in ${envService.get(
     "NODE_ENV"
   )} mode on port ${envService.get("PORT")}`
 );

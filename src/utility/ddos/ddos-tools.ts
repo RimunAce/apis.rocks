@@ -1,24 +1,28 @@
 /**
+ * ##################################
+ *
  * DDoS Protection Tools
  *
+ * ##################################
+ *
  * This file contains various tools for testing and configuring DDoS protection.
- * It consolidates functionality from multiple test files to avoid code duplication.
+ * Consolidates functionality from multiple test files to avoid code duplication.
  *
  * Usage:
  * bun run src/utility/ddos/ddos-tools.ts [command]
  *
  * Commands:
- * - check-config: Check DDoS protection configuration
- * - test-service: Test the DDoS protection service directly
- * - test-redis: Check if Redis is properly tracking IP requests
- * - test-root: Test DDoS protection for the root route
- * - load-test [url] [requests-per-second] [duration-seconds]: Run a load test
+ * * check-config: Check DDoS protection configuration
+ * * test-service: Test the DDoS protection service directly
+ * * test-redis: Check if Redis is properly tracking IP requests
+ * * test-root: Test DDoS protection for the root route
+ * * load-test [url] [requests-per-second] [duration-seconds]: Run a load test
  */
 
 import { envService } from "../env/env.service";
-import logger from "../logger/logger.service";
 import redisService from "../redis/redis.service";
 import ddosProtectionService from "./ddos.service";
+import type { Redis } from "@upstash/redis";
 
 // Default values for load test
 const DEFAULT_TARGET_URL = "http://localhost:3000/";
@@ -55,38 +59,49 @@ const logTestStart = (url: string, rps: number, duration: number) => {
   console.log(`\nStarting test in 3 seconds...`);
 };
 
-const logTestResults = (
-  startTime: number,
-  totalRequests: number,
-  successCount: number,
-  errorCount: number,
-  rateLimitedCount: number,
-  redirectCount = 0
-) => {
+interface TestResults {
+  startTime: number;
+  totalRequests: number;
+  successCount: number;
+  errorCount: number;
+  rateLimitedCount: number;
+  redirectCount?: number;
+}
+
+const logTestResults = (results: TestResults) => {
   const endTime = Date.now();
-  const duration = (endTime - startTime) / 1000;
+  const duration = (endTime - results.startTime) / 1000;
   const getPercentage = (count: number) =>
-    ((count / totalRequests) * 100).toFixed(2);
+    ((count / results.totalRequests) * 100).toFixed(2);
 
   console.log(`\n\nTest completed at ${new Date().toISOString()}`);
   console.log(`Duration: ${duration.toFixed(2)} seconds`);
-  console.log(`Total requests sent: ${totalRequests}`);
-  console.log(`Success: ${successCount} (${getPercentage(successCount)}%)`);
+  console.log(`Total requests sent: ${results.totalRequests}`);
+  console.log(
+    `Success: ${results.successCount} (${getPercentage(results.successCount)}%)`
+  );
 
-  if (redirectCount > 0) {
+  if (results.redirectCount) {
     console.log(
-      `Redirects: ${redirectCount} (${getPercentage(redirectCount)}%)`
+      `Redirects: ${results.redirectCount} (${getPercentage(
+        results.redirectCount
+      )}%)`
     );
   }
 
-  console.log(`Errors: ${errorCount} (${getPercentage(errorCount)}%)`);
   console.log(
-    `Rate limited (429): ${rateLimitedCount} (${getPercentage(
-      rateLimitedCount
+    `Errors: ${results.errorCount} (${getPercentage(results.errorCount)}%)`
+  );
+  console.log(
+    `Rate limited (429): ${results.rateLimitedCount} (${getPercentage(
+      results.rateLimitedCount
     )}%)`
   );
 
-  if (rateLimitedCount > 0 && rateLimitedCount / totalRequests > 0.3) {
+  if (
+    results.rateLimitedCount > 0 &&
+    results.rateLimitedCount / results.totalRequests > 0.3
+  ) {
     console.log(
       `\n✅ DDoS protection appears to be working! Requests were blocked with 429 status code.`
     );
@@ -137,8 +152,14 @@ async function makeRequest(
 }
 
 /**
- * Check DDoS protection configuration
+ * ##################################
+ *
+ * DDoS Protection Functions
+ *
+ * ##################################
  */
+
+// Check DDoS protection configuration
 async function checkConfig() {
   logHeader("DDoS Protection Configuration Check");
 
@@ -198,9 +219,7 @@ async function checkConfig() {
   );
 }
 
-/**
- * Test the DDoS protection service directly
- */
+// Test the DDoS protection service directly
 async function testService() {
   logHeader("DDoS Protection Service Check");
   console.log(`Redis available: ${redisService.isRedisAvailable()}`);
@@ -213,20 +232,19 @@ async function testService() {
 
   console.log("\nSimulating multiple requests from the same IP...");
 
-  // Access the private methods using any type assertion
-  const service = ddosProtectionService as any;
+  const service = ddosProtectionService;
   const threshold = envService.get("DDOS_THRESHOLD_REQUESTS");
 
   // Test tracking IP requests
   for (let i = 1; i <= threshold + 5; i++) {
-    const count = await service.trackIPRequest(mockIP);
+    const count = await service.ipTracker.track(mockIP);
     console.log(`Request ${i}: Count = ${count}`);
 
     if (count > threshold) {
       console.log(`Threshold exceeded at request ${i}. IP should be banned.`);
 
       // Check if IP is marked as DDoS
-      const isBanned = await service.isIPMarkedAsDDoS(mockIP);
+      const isBanned = await service.ipTracker.isBanned(mockIP);
       console.log(`IP banned status: ${isBanned}`);
       console.log(
         isBanned
@@ -238,9 +256,7 @@ async function testService() {
   }
 }
 
-/**
- * Check if Redis is properly tracking IP requests for DDoS protection
- */
+// Check if Redis is properly tracking IP requests for DDoS protection
 async function testRedis() {
   logHeader("Redis IP Request Tracking Check");
 
@@ -280,17 +296,7 @@ async function testRedis() {
   );
 }
 
-async function testRedisIPTracking(
-  redis: any,
-  threshold: number,
-  timeWindow: number,
-  banDuration: number
-) {
-  const testIP = "127.0.0.1";
-  console.log(`\nTesting IP request tracking for IP: ${testIP}`);
-
-  // Check if IP is already banned
-  const now = Math.floor(Date.now() / 1000);
+async function checkAndClearBan(redis: Redis, testIP: string) {
   const banKey = `ddos:banned:${testIP}`;
   const isBanned = await redis.exists(banKey);
 
@@ -300,25 +306,64 @@ async function testRedisIPTracking(
     );
     await redis.del(banKey);
   }
+  return banKey;
+}
 
-  // Track requests for the test IP
+async function setupRequestTracking(
+  redis: Redis,
+  testIP: string,
+  timeWindow: number
+) {
+  const now = Math.floor(Date.now() / 1000);
   const windowKey = Math.floor(now / timeWindow);
   const ipKey = `ddos:${testIP}:${windowKey}`;
-
-  // Clear any existing count
   await redis.del(ipKey);
+  return ipKey;
+}
+
+async function handleThresholdExceeded(
+  redis: Redis,
+  testIP: string,
+  banKey: string,
+  banDuration: number,
+  ipKey: string
+) {
+  await redis.set(banKey, "1", { ex: banDuration });
+  const isBannedNow = await redis.exists(banKey);
+  console.log(
+    `IP banned status: ${isBannedNow === 1 ? "Banned" : "Not banned"}`
+  );
+
+  if (isBannedNow === 1) {
+    console.log(
+      "✅ Redis is correctly tracking and banning IPs for DDoS protection."
+    );
+    await redis.del(banKey);
+    console.log("Test ban removed.");
+  } else {
+    console.log("❌ Failed to ban IP in Redis.");
+  }
+}
+
+async function testRedisIPTracking(
+  redis: Redis,
+  threshold: number,
+  timeWindow: number,
+  banDuration: number
+) {
+  const testIP = "127.0.0.1";
+  console.log(`\nTesting IP request tracking for IP: ${testIP}`);
+
+  const banKey = await checkAndClearBan(redis, testIP);
+  const ipKey = await setupRequestTracking(redis, testIP, timeWindow);
 
   console.log(`\nSimulating ${threshold + 5} requests from IP ${testIP}...`);
 
-  // Simulate requests
   for (let i = 1; i <= threshold + 5; i++) {
     const count = await redis.incr(ipKey);
 
     if (i === 1) {
-      // Set expiration on first request
       await redis.expire(ipKey, timeWindow * 2);
-
-      // Check if expiration was set
       const ttl = await redis.ttl(ipKey);
       console.log(
         `Key expiration set: ${ttl > 0 ? "Yes" : "No"} (TTL: ${ttl} seconds)`
@@ -329,61 +374,27 @@ async function testRedisIPTracking(
       console.log(`Request ${i}: Count = ${count}`);
     }
 
-    // Check if count exceeds threshold
     if (count > threshold && i === threshold + 1) {
       console.log(
         `\n✅ Threshold exceeded at request ${i}. IP should be banned.`
       );
-
-      // Manually ban the IP
-      await redis.set(banKey, "1", { ex: banDuration });
-
-      // Check if IP is banned
-      const isBannedNow = await redis.exists(banKey);
-      console.log(
-        `IP banned status: ${isBannedNow === 1 ? "Banned" : "Not banned"}`
-      );
-
-      if (isBannedNow === 1) {
-        console.log(
-          "✅ Redis is correctly tracking and banning IPs for DDoS protection."
-        );
-
-        // Clean up the test ban
-        await redis.del(banKey);
-        console.log("Test ban removed.");
-      } else {
-        console.log("❌ Failed to ban IP in Redis.");
-      }
+      await handleThresholdExceeded(redis, testIP, banKey, banDuration, ipKey);
     }
   }
 
-  // Check final count
   const finalCount = await redis.get(ipKey);
   console.log(`\nFinal request count for IP ${testIP}: ${finalCount}`);
-
-  // Clean up
   await redis.del(ipKey);
-  console.log("Test data cleaned up.");
 
   console.log("\nConclusion:");
-  if (parseInt(finalCount as string) > threshold) {
-    console.log(
-      "✅ Redis is correctly tracking request counts for DDoS protection."
-    );
-    console.log(
-      "If DDoS protection is still not working, check the middleware implementation."
-    );
-  } else {
-    console.log(
-      "❌ Redis is not correctly tracking request counts for DDoS protection."
-    );
-  }
+  console.log(
+    parseInt(finalCount as string) > threshold
+      ? "✅ Redis is correctly tracking request counts for DDoS protection."
+      : "❌ Redis is not correctly tracking request counts for DDoS protection."
+  );
 }
 
-/**
- * Run a load test with configurable parameters
- */
+// Run a load test with configurable parameters
 async function runLoadTest(
   targetUrl: string,
   requestsPerSecond: number,
@@ -413,31 +424,23 @@ async function runLoadTest(
 
       setTimeout(() => {
         clearInterval(intervalId);
-        logTestResults(
+        logTestResults({
           startTime,
-          stats.totalRequests,
-          stats.successCount,
-          stats.errorCount,
-          stats.rateLimitedCount,
-          stats.redirectCount
-        );
+          ...stats,
+        });
         resolve();
       }, durationSeconds * 1000);
     }, 3000);
   });
 }
 
-/**
- * Test DDoS protection for the root route
- */
+// Test DDoS protection for the root route
 async function testRoot() {
   logHeader("Root Route DDoS Protection Test");
   await runLoadTest("http://localhost:3000/", 20, 10);
 }
 
-/**
- * Run a load test against a target URL
- */
+// Run a load test against a target URL
 async function loadTest(
   targetUrl = DEFAULT_TARGET_URL,
   requestsPerSecond = DEFAULT_REQUESTS_PER_SECOND,
@@ -447,9 +450,7 @@ async function loadTest(
   await runLoadTest(targetUrl, requestsPerSecond, durationSeconds, true);
 }
 
-/**
- * Display help information
- */
+// Display help information
 function showHelp() {
   console.log(`
 DDoS Protection Tools
@@ -466,41 +467,29 @@ Commands:
   `);
 }
 
-/**
- * Main function to parse command line arguments and run the appropriate tool
- */
+const commandMap = {
+  "check-config": checkConfig,
+  "test-service": testService,
+  "test-redis": testRedis,
+  "test-root": testRoot,
+  "load-test": async (args: string[]) => {
+    const targetUrl = args[1] || DEFAULT_TARGET_URL;
+    const requestsPerSecond = parseInt(
+      args[2] || DEFAULT_REQUESTS_PER_SECOND.toString()
+    );
+    const durationSeconds = parseInt(
+      args[3] || DEFAULT_DURATION_SECONDS.toString()
+    );
+    await loadTest(targetUrl, requestsPerSecond, durationSeconds);
+  },
+  help: showHelp,
+} as const;
+
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0] || "help";
-
-  switch (command) {
-    case "check-config":
-      await checkConfig();
-      break;
-    case "test-service":
-      await testService();
-      break;
-    case "test-redis":
-      await testRedis();
-      break;
-    case "test-root":
-      await testRoot();
-      break;
-    case "load-test":
-      const targetUrl = args[1] || DEFAULT_TARGET_URL;
-      const requestsPerSecond = parseInt(
-        args[2] || DEFAULT_REQUESTS_PER_SECOND.toString()
-      );
-      const durationSeconds = parseInt(
-        args[3] || DEFAULT_DURATION_SECONDS.toString()
-      );
-      await loadTest(targetUrl, requestsPerSecond, durationSeconds);
-      break;
-    case "help":
-    default:
-      showHelp();
-      break;
-  }
+  const handler = commandMap[command as keyof typeof commandMap] || showHelp;
+  await handler(args);
 }
 
 // Run the main function if this file is executed directly

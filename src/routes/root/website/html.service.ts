@@ -380,7 +380,7 @@ const generateHtml = (metrics: ReturnType<typeof getSystemMetrics>) => {
 
 const htmlService = new Elysia().get(
   "/",
-  async ({ set }) => {
+  async ({ set, request }) => {
     const metrics = getSystemMetrics();
     const html = generateHtml(metrics);
 
@@ -398,6 +398,15 @@ const htmlService = new Elysia().get(
       200: t.String({
         description: "HTML content of the landing page",
       }),
+      429: t.Object(
+        {
+          error: t.String(),
+          message: t.String(),
+        },
+        {
+          description: "Rate limit exceeded",
+        }
+      ),
     },
   }
 );

@@ -3,7 +3,7 @@ import { envService } from "../env/env.service";
 import logger from "../logger/logger.service";
 
 class RedisService {
-  private redis: Redis | null = null;
+  private readonly redis: Redis | null = null;
 
   constructor() {
     const redisUrl = envService.get("UPSTASH_REDIS_URL");
