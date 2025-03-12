@@ -31,6 +31,10 @@ class RedisService {
     return this.redis !== null;
   }
 
+  getRedisClient(): Redis | null {
+    return this.redis;
+  }
+
   async checkRateLimit(
     userId: string,
     apiKeyId: string,

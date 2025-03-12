@@ -14,6 +14,10 @@ export const envSchema = z.object({
   UPSTASH_REDIS_TOKEN: z.string().optional(),
   SCRAPPER_URL: z.string().optional(),
   BUNNYCDN_API_KEY: z.string().optional(),
+  DDOS_PROTECTION_ENABLED: z.coerce.boolean().default(true),
+  DDOS_THRESHOLD_REQUESTS: z.coerce.number().default(100),
+  DDOS_TIME_WINDOW_SECONDS: z.coerce.number().default(10),
+  DDOS_BAN_DURATION_SECONDS: z.coerce.number().default(300),
 });
 
 export type Env = z.infer<typeof envSchema>;

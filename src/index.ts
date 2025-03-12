@@ -17,6 +17,7 @@ declare global {
 ////////////////////////////////
 import compressionMiddleware from "./utility/compression/compression.service";
 import logger from "./utility/logger/logger.service";
+import ddosProtectionService from "./utility/ddos/ddos.service";
 
 ////////////////////////////////
 // Importing routes           //
@@ -67,6 +68,7 @@ const app = new Elysia({
       allowedHeaders: ["Content-Type", "Authorization"],
     })
   )
+  .use(ddosProtectionService.middleware)
   .use(
     swagger({
       path: "/docs",
