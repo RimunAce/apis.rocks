@@ -159,11 +159,15 @@ class RedisService {
     return this.redisType;
   }
 
-  // Backward Compatibility
+  // For backward compatibility
   getRedisClient(): UpstashRedis | null {
-    return this.upstashClient;
+    if (this.redisType === "upstash") {
+      return this.upstashClient;
+    }
+    return null;
   }
 
+  // Get the standardized Redis adapter that works with both Redis types
   getRedisAdapter(): RedisClient | null {
     return this.redisClient;
   }
