@@ -12,6 +12,8 @@ export const envSchema = z.object({
   SUPABASE_KEY: z.string().optional(),
   UPSTASH_REDIS_URL: z.string().optional(),
   UPSTASH_REDIS_TOKEN: z.string().optional(),
+  REDIS_TYPE: z.enum(["upstash", "self-hosted"]).default("upstash"),
+  REDIS_CONNECTION_STRING: z.string().optional(),
   SCRAPPER_URL: z.string().optional(),
   BUNNYCDN_API_KEY: z.string().optional(),
   DDOS_PROTECTION_ENABLED: z.coerce.boolean().default(true),

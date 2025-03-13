@@ -1,7 +1,7 @@
 {
   "name": "apis.rocks",
   "description": "The API for Apis.Rocks",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
@@ -28,6 +28,7 @@
     "apis.rocks": "file:",
     "elysia": "^1.2.25",
     "gimmeytmp3": "^1.0.4",
+    "ioredis": "^5.6.0",
     "sanitize-html": "^2.14.0",
     "tiktoken": "^1.0.20",
     "winston": "^3.17.0",

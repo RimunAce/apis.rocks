@@ -21,28 +21,91 @@ const config = {
 class IPTracker {
   async track(ip: string): Promise<number> {
     if (!redisService.isRedisAvailable()) return 0;
-    const redis = redisService.getRedisClient();
-    if (!redis) return 0;
 
-    const now = Math.floor(Date.now() / 1000);
-    const windowKey = Math.floor(now / config.TIME_WINDOW);
-    const ipKey = `ddos:${ip}:${windowKey}`;
+    try {
+      const redisType = redisService.getRedisType();
+      const now = Math.floor(Date.now() / 1000);
+      const windowKey = Math.floor(now / config.TIME_WINDOW);
+      const ipKey = `ddos:${ip}:${windowKey}`;
 
-    const count = await redis.incr(ipKey);
-    if (count === 1) await redis.expire(ipKey, config.TIME_WINDOW * 2);
-    return count;
+      if (redisType === "upstash") {
+        const redis = redisService.getRedisClient();
+        if (!redis) return 0;
+
+        const count = await redis.incr(ipKey);
+        if (count === 1) await redis.expire(ipKey, config.TIME_WINDOW * 2);
+        return count;
+      } else if (redisType === "self-hosted") {
+        const count = await this.incrementCounter(ipKey);
+        return count;
+      }
+
+      return 0;
+    } catch (error) {
+      logger.error("Error tracking IP request", { error, ip });
+      return 0;
+    }
+  }
+
+  private async incrementCounter(key: string): Promise<number> {
+    try {
+      const redisClient = redisService.getRedisAdapter();
+      if (!redisClient) return 0;
+
+      const count = await redisClient.incr(key);
+      if (count === 1) {
+        await redisClient.expire(key, config.TIME_WINDOW * 2);
+      }
+      return count;
+    } catch (error) {
+      logger.error("Error incrementing counter", { error, key });
+      return 0;
+    }
   }
 
   async ban(ip: string): Promise<void> {
-    const redis = redisService.getRedisClient();
-    if (!redis) return;
-    await redis.set(`ddos:banned:${ip}`, "1", { ex: config.BAN_DURATION });
+    if (!redisService.isRedisAvailable()) return;
+
+    try {
+      const redisType = redisService.getRedisType();
+      const banKey = `ddos:banned:${ip}`;
+
+      if (redisType === "upstash") {
+        const redis = redisService.getRedisClient();
+        if (!redis) return;
+        await redis.set(banKey, "1", { ex: config.BAN_DURATION });
+      } else if (redisType === "self-hosted") {
+        const redisClient = redisService.getRedisAdapter();
+        if (!redisClient) return;
+        await redisClient.set(banKey, "1", config.BAN_DURATION);
+      }
+    } catch (error) {
+      logger.error("Error banning IP", { error, ip });
+    }
   }
 
   async isBanned(ip: string): Promise<boolean> {
-    const redis = redisService.getRedisClient();
-    if (!redis) return false;
-    return (await redis.exists(`ddos:banned:${ip}`)) === 1;
+    if (!redisService.isRedisAvailable()) return false;
+
+    try {
+      const redisType = redisService.getRedisType();
+      const banKey = `ddos:banned:${ip}`;
+
+      if (redisType === "upstash") {
+        const redis = redisService.getRedisClient();
+        if (!redis) return false;
+        return (await redis.exists(banKey)) === 1;
+      } else if (redisType === "self-hosted") {
+        const redisClient = redisService.getRedisAdapter();
+        if (!redisClient) return false;
+        return await redisClient.exists(banKey);
+      }
+
+      return false;
+    } catch (error) {
+      logger.error("Error checking if IP is banned", { error, ip });
+      return false;
+    }
   }
 }
 
