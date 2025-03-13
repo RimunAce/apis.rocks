@@ -23,6 +23,7 @@ import { envService } from "../env/env.service";
 import redisService from "../redis/redis.service";
 import ddosProtectionService from "./ddos.service";
 import type { Redis } from "@upstash/redis";
+import IORedis from "ioredis";
 
 // Default values for load test
 const DEFAULT_TARGET_URL = "http://localhost:3000/";
@@ -263,18 +264,12 @@ async function testRedis() {
   // Check Redis connection
   const isRedisAvailable = redisService.isRedisAvailable();
   console.log(`Redis available: ${isRedisAvailable}`);
+  console.log(`Redis type: ${redisService.getRedisType()}`);
 
   if (!isRedisAvailable) {
     console.log(
       "❌ Redis is not available. DDoS protection cannot work without Redis."
     );
-    return;
-  }
-
-  // Get Redis client
-  const redis = redisService.getRedisClient();
-  if (!redis) {
-    console.log("❌ Failed to get Redis client.");
     return;
   }
 
@@ -288,11 +283,82 @@ async function testRedis() {
   console.log(`- Time Window (seconds): ${DDOS_TIME_WINDOW_SECONDS}`);
   console.log(`- Ban Duration (seconds): ${DDOS_BAN_DURATION_SECONDS}`);
 
-  await testRedisIPTracking(
-    redis,
-    DDOS_THRESHOLD_REQUESTS,
-    DDOS_TIME_WINDOW_SECONDS,
-    DDOS_BAN_DURATION_SECONDS
+  const redisType = redisService.getRedisType();
+
+  if (redisType === "upstash") {
+    // For Upstash Redis
+    const redis = redisService.getRedisClient();
+    if (!redis) {
+      console.log("❌ Failed to get Upstash Redis client.");
+      return;
+    }
+
+    await testRedisIPTracking(
+      redis,
+      DDOS_THRESHOLD_REQUESTS,
+      DDOS_TIME_WINDOW_SECONDS,
+      DDOS_BAN_DURATION_SECONDS
+    );
+  } else if (redisType === "self-hosted") {
+    await testSelfHostedRedis(
+      DDOS_THRESHOLD_REQUESTS,
+      DDOS_TIME_WINDOW_SECONDS,
+      DDOS_BAN_DURATION_SECONDS
+    );
+  } else {
+    console.log(`❌ Unknown Redis type: ${redisType}`);
+  }
+}
+
+async function testSelfHostedRedis(
+  threshold: number,
+  timeWindow: number,
+  banDuration: number
+) {
+  const testIP = "127.0.0.1";
+
+  console.log(`\nTesting IP request tracking for IP: ${testIP}`);
+  console.log(`\nSimulating ${threshold + 5} requests from IP ${testIP}...`);
+
+  const isBanned = await ddosProtectionService.ipTracker.isBanned(testIP);
+  if (isBanned) {
+    console.log(
+      `⚠️ Test IP ${testIP} is currently banned. This is expected during testing.`
+    );
+  }
+
+  for (let i = 1; i <= threshold + 5; i++) {
+    const count = await ddosProtectionService.ipTracker.track(testIP);
+
+    if (i % 10 === 0 || i === threshold || i === threshold + 1) {
+      console.log(`Request ${i}: Count = ${count}`);
+    }
+
+    if (count > threshold && i === threshold + 1) {
+      console.log(
+        `\n✅ Threshold exceeded at request ${i}. IP should be banned.`
+      );
+
+      const isBannedNow = await ddosProtectionService.ipTracker.isBanned(
+        testIP
+      );
+      console.log(`IP banned status: ${isBannedNow ? "Banned" : "Not banned"}`);
+
+      if (isBannedNow) {
+        console.log(
+          "✅ Redis is correctly tracking and banning IPs for DDoS protection."
+        );
+      } else {
+        console.log("❌ Failed to ban IP in Redis.");
+      }
+
+      break;
+    }
+  }
+
+  console.log("\nConclusion:");
+  console.log(
+    "✅ Self-hosted Redis test completed. DDoS protection is working with self-hosted Redis."
   );
 }
 

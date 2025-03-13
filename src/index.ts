@@ -75,7 +75,7 @@ const app = new Elysia({
       documentation: {
         info: {
           title: "Apis.Rocks API",
-          version: "1.2.0",
+          version: "1.2.1",
           description:
             "API documentation for the Apis.Rocks application with authentication system",
           contact: {

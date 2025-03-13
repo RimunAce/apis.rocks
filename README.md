@@ -80,6 +80,8 @@ So allow me to tell you what I have made here.
 
 ~~P/S: I did not made this to integrate automatically with other database than Redis (Upstash) and Supabase~~
 
+Oh scrape this idea. Redis can be self-hosted.
+
 ## 3.0 Deployment
 
 The application is configured for deployment with [Fly.io](https://fly.io/). Use the included `Dockerfile` and `fly.toml` for deployment.
