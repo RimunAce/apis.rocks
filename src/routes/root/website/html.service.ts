@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { envService } from "../../../utility/env/env.service";
 import os from "node:os";
 
-const API_VERSION = "1.2.1";
+const API_VERSION = "1.2.2";
 
 const getSystemMetrics = () => {
   const uptimeSeconds = Math.floor(process.uptime());

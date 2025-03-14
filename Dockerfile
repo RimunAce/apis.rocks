@@ -1,4 +1,4 @@
-FROM oven/bun:latest AS builder
+FROM oven/bun:1.0.25 AS builder
 
 WORKDIR /app
 
@@ -15,22 +15,20 @@ COPY . ./
 RUN bun run build
 
 # Start a new stage for the runtime
-FROM oven/bun:latest
+FROM oven/bun:1.0.25
 
 WORKDIR /app
 
-# Install FFmpeg and yt-dlp (required for gimmeytmp3)
+# Install FFmpeg, yt-dlp and additional dependencies for video processing
 RUN apt-get update && \
-    apt-get install -y ffmpeg python3 python3-pip && \
-    pip3 install yt-dlp && \
+    apt-get install -y ca-certificates curl ffmpeg libavcodec-extra libavdevice-dev \
+    libavformat-dev libavutil-dev libcrypto++-dev libssl-dev libswscale-dev \
+    python3 python3-pip wget && \
+    pip3 install --no-cache-dir --upgrade yt-dlp && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Verify FFmpeg installation
-RUN ffmpeg -version && yt-dlp --version
-
-# Create downloads directory for MP3 files
-RUN mkdir -p ./downloads && chmod 777 ./downloads
+    rm -rf /var/lib/apt/lists/* && \
+    ffmpeg -version && yt-dlp --version && \
+    mkdir -p ./downloads && chmod 777 ./downloads
 
 # Copy package files and install production dependencies only
 COPY package.json bun.lockb* ./
