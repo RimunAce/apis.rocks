@@ -3,10 +3,10 @@ FROM oven/bun:1.0.25 AS builder
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY package.json bun.lock ./
+COPY package.json ./
 
 # Install dependencies
-RUN bun install
+RUN bun install --no-save
 
 # Copy source code (only necessary files)
 COPY src/ ./src/
@@ -34,8 +34,8 @@ RUN adduser --disabled-password --gecos "" appuser && \
     mkdir -p ./downloads && chown appuser:appuser ./downloads && chmod 755 ./downloads
 
 # Copy package files and install production dependencies only
-COPY package.json bun.lock ./
-RUN bun install --production
+COPY package.json ./
+RUN bun install --production --no-save
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
