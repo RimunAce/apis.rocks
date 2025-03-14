@@ -19,8 +19,9 @@ FROM oven/bun:1.0.25
 
 WORKDIR /app
 
-# Install FFmpeg, yt-dlp and additional dependencies for video processing
-RUN apt-get update && \
+# Create a non-root user and install dependencies
+RUN adduser --disabled-password --gecos "" appuser && \
+    apt-get update && \
     apt-get install -y ca-certificates curl ffmpeg libavcodec-extra libavdevice-dev \
     libavformat-dev libavutil-dev libcrypto++-dev libssl-dev libswscale-dev \
     python3 python3-pip wget && \
@@ -28,7 +29,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     ffmpeg -version && yt-dlp --version && \
-    mkdir -p ./downloads && chmod 777 ./downloads
+    mkdir -p ./downloads && chown appuser:appuser ./downloads && chmod 755 ./downloads
 
 # Copy package files and install production dependencies only
 COPY package.json bun.lockb* ./
@@ -40,12 +41,18 @@ COPY --from=builder /app/dist ./dist
 # Copy necessary files for runtime
 COPY --from=builder /app/src/utility ./src/utility
 
+# Set ownership of application files to appuser
+RUN chown -R appuser:appuser /app
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 
 # Expose the port
 EXPOSE 3000
+
+# Switch to non-root user
+USER appuser
 
 # Run the application in production mode with clustering
 CMD ["bun", "run", "prod"]

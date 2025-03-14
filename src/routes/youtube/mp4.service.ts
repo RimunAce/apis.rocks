@@ -5,7 +5,9 @@ import * as https from "node:https";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as child_process from "node:child_process";
+import * as os from "node:os";
 import type { IncomingMessage } from "node:http";
+import { ChildProcessWithoutNullStreams } from "child_process";
 
 const config = {
   showDownloadProgress: envService.get("NODE_ENV") === "development",
@@ -13,6 +15,80 @@ const config = {
   downloadDir: "./downloads",
   storageBucket: "apis-rocks",
   cdnHostname: "cdn.apis.rocks",
+};
+
+// Define possible paths for yt-dlp based on OS
+const getYtDlpPath = (): string => {
+  const isWindows = os.platform() === "win32";
+  const possiblePaths = isWindows
+    ? [
+        path.join(process.cwd(), "yt-dlp.exe"),
+        path.join(os.homedir(), "yt-dlp", "yt-dlp.exe"),
+        "C:\\Program Files\\yt-dlp\\yt-dlp.exe",
+        "C:\\Program Files (x86)\\yt-dlp\\yt-dlp.exe",
+        // Fall back to PATH as last resort
+        "yt-dlp.exe",
+      ]
+    : [
+        path.join(process.cwd(), "yt-dlp"),
+        path.join("/usr/local/bin", "yt-dlp"),
+        path.join("/usr/bin", "yt-dlp"),
+        path.join(os.homedir(), "bin", "yt-dlp"),
+        // Fall back to PATH as last resort
+        "yt-dlp",
+      ];
+
+  // Return the first path that exists, or the last one as fallback
+  for (const p of possiblePaths.slice(0, -1)) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+
+  return possiblePaths[possiblePaths.length - 1];
+};
+
+// Store the path to yt-dlp
+const ytDlpPath = getYtDlpPath();
+
+// Helper functions to handle common yt-dlp process operations
+const handleYtDlpStderr = (data: Buffer, stderr: string): string => {
+  const errorText = data.toString();
+  const newStderr = stderr + errorText;
+
+  if (
+    !errorText.includes("[debug]") &&
+    !errorText.trim().startsWith("[debug]")
+  ) {
+    logger.error(`yt-dlp error: ${errorText.trim()}`);
+  }
+
+  return newStderr;
+};
+
+const processYtDlpErrors = (stderr: string, code: number | null): string => {
+  const exitCode = code ?? -1; // Default to -1 if code is null
+  const actualErrors = stderr
+    .split("\n")
+    .filter((line) => !line.includes("[debug]") && line.trim() !== "")
+    .join("\n");
+
+  logger.error(
+    `yt-dlp exited with code ${exitCode}: ${actualErrors || "Unknown error"}`
+  );
+
+  return actualErrors || "Unknown error";
+};
+
+const setupYtDlpErrorHandlers = (
+  ytDlp: ChildProcessWithoutNullStreams,
+  stderr: string,
+  reject: (reason?: any) => void
+): void => {
+  ytDlp.on("error", (error) => {
+    logger.error(`Failed to spawn yt-dlp: ${error}`);
+    reject(error);
+  });
 };
 
 interface YtDlpResponse {
@@ -71,9 +147,13 @@ const deleteFile = (filePath: string): void => {
 
 const isYtDlpInstalled = (): boolean => {
   try {
-    const result = child_process.spawnSync("yt-dlp", ["--version"]);
+    const result = child_process.spawnSync(ytDlpPath, ["--version"], {
+      env: { ...process.env, PATH: process.env.PATH ?? "" },
+      shell: false,
+    });
     return result.status === 0;
   } catch (error) {
+    logger.error(`Failed to check yt-dlp installation: ${error}`);
     return false;
   }
 };
@@ -109,12 +189,15 @@ const getVideoInfo = (url: string): Promise<YtDlpResponse> => {
     args.push(url);
 
     if (config.debugMode) {
-      logger.info(`Executing: yt-dlp ${args.join(" ")}`);
+      logger.info(`Executing: ${ytDlpPath} ${args.join(" ")}`);
     } else {
       logger.info(`Retrieving video info for ${url}`);
     }
 
-    const ytDlp = child_process.spawn("yt-dlp", args);
+    const ytDlp = child_process.spawn(ytDlpPath, args, {
+      env: { ...process.env, PATH: process.env.PATH ?? "" },
+      shell: false,
+    });
     let stdout = "";
     let stderr = "";
 
@@ -123,34 +206,13 @@ const getVideoInfo = (url: string): Promise<YtDlpResponse> => {
     });
 
     ytDlp.stderr.on("data", (data) => {
-      const errorText = data.toString();
-      stderr += errorText;
-
-      if (
-        !errorText.includes("[debug]") &&
-        !errorText.trim().startsWith("[debug]")
-      ) {
-        logger.error(`yt-dlp error: ${errorText.trim()}`);
-      }
+      stderr = handleYtDlpStderr(data, stderr);
     });
 
     ytDlp.on("close", (code) => {
       if (code !== 0) {
-        const actualErrors = stderr
-          .split("\n")
-          .filter((line) => !line.includes("[debug]") && line.trim() !== "")
-          .join("\n");
-
-        logger.error(
-          `yt-dlp exited with code ${code}: ${actualErrors || "Unknown error"}`
-        );
-        reject(
-          new Error(
-            `yt-dlp exited with code ${code}: ${
-              actualErrors || "Unknown error"
-            }`
-          )
-        );
+        const errorMessage = processYtDlpErrors(stderr, code);
+        reject(new Error(`yt-dlp exited with code ${code}: ${errorMessage}`));
         return;
       }
 
@@ -163,10 +225,7 @@ const getVideoInfo = (url: string): Promise<YtDlpResponse> => {
       }
     });
 
-    ytDlp.on("error", (error) => {
-      logger.error(`Failed to spawn yt-dlp: ${error}`);
-      reject(error);
-    });
+    setupYtDlpErrorHandlers(ytDlp, stderr, reject);
   });
 };
 
@@ -198,12 +257,15 @@ const downloadVideo = (
     args.push(url);
 
     if (config.debugMode) {
-      logger.info(`Executing: yt-dlp ${args.join(" ")}`);
+      logger.info(`Executing: ${ytDlpPath} ${args.join(" ")}`);
     } else {
       logger.info(`Downloading video with format: ${format}`);
     }
 
-    const ytDlp = child_process.spawn("yt-dlp", args);
+    const ytDlp = child_process.spawn(ytDlpPath, args, {
+      env: { ...process.env, PATH: process.env.PATH ?? "" },
+      shell: false,
+    });
     let stderr = "";
 
     ytDlp.stdout.on("data", (data) => {
@@ -217,34 +279,13 @@ const downloadVideo = (
     });
 
     ytDlp.stderr.on("data", (data) => {
-      const errorText = data.toString();
-      stderr += errorText;
-
-      if (
-        !errorText.includes("[debug]") &&
-        !errorText.trim().startsWith("[debug]")
-      ) {
-        logger.error(`yt-dlp error: ${errorText.trim()}`);
-      }
+      stderr = handleYtDlpStderr(data, stderr);
     });
 
     ytDlp.on("close", (code) => {
       if (code !== 0) {
-        const actualErrors = stderr
-          .split("\n")
-          .filter((line) => !line.includes("[debug]") && line.trim() !== "")
-          .join("\n");
-
-        logger.error(
-          `yt-dlp exited with code ${code}: ${actualErrors || "Unknown error"}`
-        );
-        reject(
-          new Error(
-            `yt-dlp exited with code ${code}: ${
-              actualErrors || "Unknown error"
-            }`
-          )
-        );
+        const errorMessage = processYtDlpErrors(stderr, code);
+        reject(new Error(`yt-dlp exited with code ${code}: ${errorMessage}`));
         return;
       }
 
@@ -258,10 +299,7 @@ const downloadVideo = (
       resolve();
     });
 
-    ytDlp.on("error", (error) => {
-      logger.error(`Failed to spawn yt-dlp: ${error}`);
-      reject(error);
-    });
+    setupYtDlpErrorHandlers(ytDlp, stderr, reject);
   });
 };
 
