@@ -13,105 +13,78 @@
   <a href="https://github.com/winstonjs/winston"><img src="https://img.shields.io/badge/Winston-black?style=for-the-badge&logo=node.js" alt="Winston"/></a>
 </p>
 
-# 0.0 The cat is cute. You think so too. Don't you?
+---
 
-https://github.com/user-attachments/assets/93770e67-3824-45aa-aedb-c1f699ec2187
+Prerequisites\*\*
 
-> [!NOTE]
-> You can fetch the cat monitoring video from `/cat` endpoint. I'm being serious.
-> Alternatively, https://cdn.apis.rocks/cat%20monitoring.mp4 or just download and host the video yourself.
+- Node.js (v18.18.0 or higher) - [Download](https://nodejs.org/en/download/)
+- Bun (v1.0.25 or higher) - [Download](https://bun.sh/download)
+- Docker (v26.0.1 or higher) - [Download](https://www.docker.com/products/docker-desktop/)
+- BunnyCDN account (For media storage) - [Sign Up](https://bunny.net/signup)
+- Fly.io account (optional, for deployment) - [Sign Up](https://fly.io/signup)
+- yt-dlp (v2024.11.13 or higher) - [Download](https://github.com/yt-dlp/yt-dlp/releases)
+- ffmpeg (v6.0.1 or higher) - [Download](https://ffmpeg.org/download.html)
 
-## 0.1 Why?
+### Navigation
 
-You ever used https://api.rimunace.xyz? Yeah that's my API I made for you to access AI models.  
-I mean, yeah that project is private. It's so bad I can't look at it. So here's an alternative. I call it... APIS.ROCKS
+- [:gear: Installation & Set-Up](#-gear-installation--set-up)
+- [:cloud: Deploy to Fly.io](#-cloud-deploy-to-flyio)
 
-Out of all names I can choose, I have no idea what's so rock about this. I want the "API.ROCKS" but it's already taken (lol xd).
-This stuff came out of nowhere. First Golang and now suddenly this. James, if you are reading this, please don't be mad. I imported
-the `*.service.ts` like I cared this project since rimunace v2 using nestjs.
+---
 
-So allow me to tell you what I have made here.
-
-```
-- 100% free (or is it)
-- 100% open source
-- 100% customisable
-- 100% no credit card required (maybe this one is a lie)
-
-- AI Endpoints
-- Admin Endpoints (Panel is sold seperately)
-- Database (Redis, Supabase, etc) # but I only made support for Supabase and Upstash Redis
-```
-
-<p align="center">
-  <span style="font-size: 24px;">OMG HELP SHE IS T POSING</span>
-</p>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/f04e4047-cce9-4b00-8cb0-9ef57ac02923" alt="T-posing image">
-</p>
-
-## 1.0 Tech Stack
-
-- [Elysia.js](https://elysiajs.com/) - I swear I didn't use this just because someone shared a video of tech talk about it.
-- [Bun](https://bun.sh/) - So fast. I love it. Better than default Node.js (or idk, like, just try it).
-- [Zod](https://zod.dev/) - I just use this for schema validation and specifically because this damn workspace uses typescript.
-- [Winston](https://github.com/winstonjs/winston) - I had a hard time choosing Pino and this. Please spare me the two brain cells.
-
-~~I'm sorry nest.js and hono, maybe next time~~
-
-## 2.0 Getting Started
+### - :gear: Installation & Set-Up
 
 1. Clone the repository
-2. Install dependencies:
-   ```bash
-   bun install
-   ```
+
+```bash
+git clone https://github.com/rimunace/apis.rocks.git
+cd apis.rocks
+```
+
+2. Install dependencies
+
+```bash
+bun install
+```
+
 3. Copy `.env.example` to `.env.local` and configure your environment variables
-4. Start the development server:
 
-   ```bash
-   bun run dev
-   ```
+```bash
+cp .env.example .env.local
+```
 
-5. If you use supabase, you can run the migration to create the tables:
-   ```bash
-   bun run migrate
-   ```
+4. Start the server
 
-~~P/S: I did not made this to integrate automatically with other database than Redis (Upstash) and Supabase~~
+```bash
+bun run dev # Development
+bun run start # Production
+```
 
-Oh scrape this idea. Redis can be self-hosted.
+---
 
-## 3.0 Deployment
+### - :cloud: Deploy to Fly.io
 
-The application is configured for deployment with [Fly.io](https://fly.io/). Use the included `Dockerfile` and `fly.toml` for deployment.
-You might need to change some settings in `fly.toml` to fit your needs.
+> [!NOTE]
+> Optional for those who prefer Fly.io
+
+1. Install Fly.io CLI
+
+```bash
+curl -L https://fly.io/install.sh | sh
+```
+
+2. Login to Fly.io
+
+```bash
+fly auth login
+```
+
+3. Deploy to Fly.io
 
 ```bash
 fly deploy
 ```
 
-But really, you don't have to force yourself to use fly.io. You can deploy this anywhere you want.
-If you're broke like me and you don't wanna pay a surprise 150$ bill by Zeabur (lesson learnt), get a dedicated server my friend.
+---
 
-![image](https://github.com/user-attachments/assets/53bafb33-1d4b-41e3-87f5-7f2a71bbb641)
-(Cry in broke)
-
-## 4.0 API Documentation
-
-Access the Swagger documentation at `/docs` when the server is running.
-Courtesy of Elysia.js built-in swagger documentation: https://elysiajs.com/recipe/openapi.html
-
-## 5.0 License
-
-I hereby give you permission to use this project for your own purposes.
-I do not take any responsibility for any damage or loss of data that may occur from using this project.
-Wait, don't I have to use proper license?
-
-Yes, I do. But I'm too lazy to choose one. So I'm just gonna use MIT. Get that license here: [LICENSE.md](LICENSE.md)
-
-## 6.0 Contact
-
-Omg you want to contact me? I'm flattered. Send me a hi at `hi@respire.my`
-
-[ In the future, I might need to redesign this readme properly ]
+> [Licensed Under MIT License](LICENSE.md)

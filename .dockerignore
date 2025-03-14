@@ -1,0 +1,58 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Environment and secrets
+.env*
+*.pem
+*.key
+*.cert
+secrets/
+
+# Development files
+node_modules/
+*.log
+.cache/
+coverage/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artifacts and temporary files
+dist/
+build/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Documentation
+docs/
+*.md
+LICENSE*
+
+# Docker files
+Dockerfile*
+.dockerignore
+docker-compose*
+
+# Other unnecessary files
+*.zip
+*.tar.gz
+downloads/ 

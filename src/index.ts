@@ -30,6 +30,7 @@ import chatCompletionsService from "./routes/ai/chat.completions/chat.completion
 import adminService from "./routes/admin/admin.service";
 import scrapperService from "./routes/misc/scrapper/scrapper.service";
 import { mp3Service } from "./routes/youtube/mp3.service";
+import { mp4Service } from "./routes/youtube/mp4.service";
 import { infoService } from "./routes/youtube/info.service";
 
 ////////////////////////////////
@@ -75,7 +76,7 @@ const app = new Elysia({
       documentation: {
         info: {
           title: "Apis.Rocks API",
-          version: "1.2.1",
+          version: "1.2.2",
           description:
             "API documentation for the Apis.Rocks application with authentication system",
           contact: {
@@ -227,6 +228,7 @@ const app = new Elysia({
   .use(rootService) // Root: "/"
   .use(catService) // Misc: "/cat"
   .use(mp3Service) // YouTube: "/youtube/mp3"
+  .use(mp4Service) // YouTube: "/youtube/mp4"
   .use(infoService) // YouTube: "/youtube/info"
   .use(scrapperService) // Scrapper: "/scrapper"
   .use(healthService) // Health: "/health"
