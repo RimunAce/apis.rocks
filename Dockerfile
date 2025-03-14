@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package.json ./
 
-# Remove the problematic dependency and install dependencies
-RUN sed -i '/apis.rocks/d' package.json && \
+# Remove all problematic file-based dependencies and install dependencies
+RUN sed -i -E '/("apis.rocks"|"gimmeytmp3").*file:/d' package.json && \
     bun install
 
 # Copy source code (only necessary files)
@@ -37,8 +37,8 @@ RUN adduser --disabled-password --gecos "" appuser && \
 # Copy package files and install production dependencies only
 COPY package.json ./
 
-# Remove the problematic dependency and install production dependencies
-RUN sed -i '/apis.rocks/d' package.json && \
+# Remove all problematic file-based dependencies and install production dependencies
+RUN sed -i -E '/("apis.rocks"|"gimmeytmp3").*file:/d' package.json && \
     bun install --production
 
 # Copy built files from builder stage
