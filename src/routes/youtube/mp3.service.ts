@@ -7,38 +7,11 @@ import * as https from "node:https";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { IncomingMessage } from "node:http";
-
-const isValidYoutubeUrl = (url: string): boolean => {
-  try {
-    const urlObj = new URL(url);
-    const validDomains = [
-      "youtube.com",
-      "www.youtube.com",
-      "youtu.be",
-      "m.youtube.com",
-      "music.youtube.com",
-    ];
-    return validDomains.some((domain) => urlObj.hostname === domain);
-  } catch (error) {
-    return false;
-  }
-};
-
-const isBunnyCdnConfigured = (): boolean => {
-  const apiKey = envService.get("BUNNYCDN_API_KEY");
-  return !!apiKey && apiKey.length > 0;
-};
-
-const deleteFile = (filePath: string): void => {
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      logger.info(`Deleted file: ${filePath}`);
-    }
-  } catch (error) {
-    logger.error(`Failed to delete file ${filePath}: ${error}`);
-  }
-};
+import {
+  isValidYoutubeUrl,
+  isBunnyCdnConfigured,
+  deleteFile,
+} from "../../utility/youtube/youtube.utils";
 
 export const mp3Service = new Elysia().get(
   "/youtube/mp3",

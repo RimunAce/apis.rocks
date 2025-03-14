@@ -1,6 +1,11 @@
 import { Elysia, t } from "elysia";
 import logger from "../../utility/logger/logger.service";
 import { envService } from "../../utility/env/env.service";
+import {
+  isValidYoutubeUrl,
+  isBunnyCdnConfigured,
+  deleteFile,
+} from "../../utility/youtube/youtube.utils";
 import * as https from "node:https";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -112,38 +117,6 @@ interface YtDlpResponse {
   is_live: boolean;
   [key: string]: any;
 }
-
-const isValidYoutubeUrl = (url: string): boolean => {
-  try {
-    const urlObj = new URL(url);
-    const validDomains = [
-      "youtube.com",
-      "www.youtube.com",
-      "youtu.be",
-      "m.youtube.com",
-      "music.youtube.com",
-    ];
-    return validDomains.some((domain) => urlObj.hostname === domain);
-  } catch (error) {
-    return false;
-  }
-};
-
-const isBunnyCdnConfigured = (): boolean => {
-  const apiKey = envService.get("BUNNYCDN_API_KEY");
-  return !!apiKey && apiKey.length > 0;
-};
-
-const deleteFile = (filePath: string): void => {
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      logger.info(`Deleted file: ${filePath}`);
-    }
-  } catch (error) {
-    logger.error(`Failed to delete file ${filePath}: ${error}`);
-  }
-};
 
 const isYtDlpInstalled = (): boolean => {
   try {

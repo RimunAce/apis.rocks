@@ -22,7 +22,8 @@ WORKDIR /app
 # Create a non-root user and install dependencies
 RUN adduser --disabled-password --gecos "" appuser && \
     apt-get update && \
-    apt-get install -y ca-certificates curl ffmpeg libavcodec-extra libavdevice-dev \
+    apt-get install -y --no-install-recommends \
+    ca-certificates curl ffmpeg libavcodec-extra libavdevice-dev \
     libavformat-dev libavutil-dev libcrypto++-dev libssl-dev libswscale-dev \
     python3 python3-pip wget && \
     pip3 install --no-cache-dir --upgrade yt-dlp && \
