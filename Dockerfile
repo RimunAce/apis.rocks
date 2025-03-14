@@ -3,13 +3,15 @@ FROM oven/bun:1.0.25 AS builder
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock bun.lockb ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile
 
-# Copy source code
-COPY . ./
+# Copy source code (only necessary files)
+COPY src/ ./src/
+COPY tsconfig.json ./
+COPY bunfig.toml ./
 
 # Build the application
 RUN bun run build
@@ -33,7 +35,7 @@ RUN adduser --disabled-password --gecos "" appuser && \
     mkdir -p ./downloads && chown appuser:appuser ./downloads && chmod 755 ./downloads
 
 # Copy package files and install production dependencies only
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock bun.lockb ./
 RUN bun install --frozen-lockfile --production
 
 # Copy built files from builder stage

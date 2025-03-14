@@ -1,17 +1,14 @@
 import { Elysia, t } from "elysia";
 import logger from "../../utility/logger/logger.service";
 import { envService } from "../../utility/env/env.service";
-import {
-  isValidYoutubeUrl,
-  isBunnyCdnConfigured,
-  deleteFile,
-} from "../../utility/youtube/youtube.utils";
+import { deleteFile } from "../../utility/youtube/youtube.utils";
 import { uploadToBunnyCDN } from "../../utility/bunnycdn/bunnycdn.utils";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as child_process from "node:child_process";
 import * as os from "node:os";
 import { ChildProcessWithoutNullStreams } from "child_process";
+import { validateYoutubeRequest } from "../../utility/youtube/validation";
 
 const config = {
   showDownloadProgress: envService.get("NODE_ENV") === "development",
@@ -125,9 +122,7 @@ const isYtDlpInstalled = (): boolean => {
 };
 
 const sanitizeFilename = (filename: string): string => {
-  let sanitized = filename
-    .replace(/[/\\?%*:|"<>]/g, "_")
-    .replace(/\s+/g, "_");
+  let sanitized = filename.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, "_");
 
   if (sanitized.length > 100) {
     sanitized = sanitized.substring(0, 100);
@@ -289,34 +284,18 @@ const qualityToFormat: Record<string, string> = {
 const validatePrerequisites = (
   url: string,
   set: any
-): { error: string } | { success: false; error: string } | null => {
-  if (!url) {
-    set.status = 400;
-    return { error: "URL is required" };
+): { success: false; error: string } | undefined => {
+  const validationResult = validateYoutubeRequest(url, {
+    checkYtDlp: true,
+    isYtDlpInstalled,
+  });
+
+  if (validationResult) {
+    set.status = validationResult.status;
+    return { success: false, error: validationResult.error };
   }
 
-  if (!isValidYoutubeUrl(url)) {
-    set.status = 400;
-    return {
-      error: "Invalid YouTube URL. Please provide a valid YouTube video URL.",
-    };
-  }
-
-  if (!isBunnyCdnConfigured()) {
-    set.status = 503;
-    return { error: "BunnyCDN is not configured. Service unavailable." };
-  }
-
-  if (!isYtDlpInstalled()) {
-    set.status = 503;
-    return {
-      success: false,
-      error:
-        "yt-dlp is not installed or not found in PATH. Please install yt-dlp to use this service. See README-YTDLP.md for installation instructions.",
-    };
-  }
-
-  return null;
+  return undefined;
 };
 
 const prepareDownload = async (

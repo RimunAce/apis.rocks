@@ -3,27 +3,21 @@ import { downloadMP3 } from "gimmeytmp3";
 import logger from "../../utility/logger/logger.service";
 import { randomUUID } from "node:crypto";
 import {
-  isValidYoutubeUrl,
   isBunnyCdnConfigured,
   deleteFile,
 } from "../../utility/youtube/youtube.utils";
 import { uploadToBunnyCDN } from "../../utility/bunnycdn/bunnycdn.utils";
+import { validateYoutubeRequest } from "../../utility/youtube/validation";
 
 export const mp3Service = new Elysia().get(
   "/youtube/mp3",
   async ({ query, set }) => {
     const { url } = query;
 
-    if (!url) {
-      set.status = 400;
-      return { error: "URL is required" };
-    }
-
-    if (!isValidYoutubeUrl(url)) {
-      set.status = 400;
-      return {
-        error: "Invalid YouTube URL. Please provide a valid YouTube video URL.",
-      };
+    const validationResult = validateYoutubeRequest(url);
+    if (validationResult) {
+      set.status = validationResult.status;
+      return { error: validationResult.error };
     }
 
     if (!isBunnyCdnConfigured()) {
