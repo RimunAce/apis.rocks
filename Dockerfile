@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 
 # Install dependencies
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Copy source code (only necessary files)
 COPY src/ ./src/
@@ -35,7 +35,7 @@ RUN adduser --disabled-password --gecos "" appuser && \
 
 # Copy package files and install production dependencies only
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN bun install --production
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
