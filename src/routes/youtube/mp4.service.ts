@@ -6,12 +6,11 @@ import {
   isBunnyCdnConfigured,
   deleteFile,
 } from "../../utility/youtube/youtube.utils";
-import * as https from "node:https";
+import { uploadToBunnyCDN } from "../../utility/bunnycdn/bunnycdn.utils";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as child_process from "node:child_process";
 import * as os from "node:os";
-import type { IncomingMessage } from "node:http";
 import { ChildProcessWithoutNullStreams } from "child_process";
 
 const config = {
@@ -22,7 +21,6 @@ const config = {
   cdnHostname: "cdn.apis.rocks",
 };
 
-// Define possible paths for yt-dlp based on OS
 const getYtDlpPath = (): string => {
   const isWindows = os.platform() === "win32";
   const possiblePaths = isWindows
@@ -31,7 +29,6 @@ const getYtDlpPath = (): string => {
         path.join(os.homedir(), "yt-dlp", "yt-dlp.exe"),
         "C:\\Program Files\\yt-dlp\\yt-dlp.exe",
         "C:\\Program Files (x86)\\yt-dlp\\yt-dlp.exe",
-        // Fall back to PATH as last resort
         "yt-dlp.exe",
       ]
     : [
@@ -39,11 +36,9 @@ const getYtDlpPath = (): string => {
         path.join("/usr/local/bin", "yt-dlp"),
         path.join("/usr/bin", "yt-dlp"),
         path.join(os.homedir(), "bin", "yt-dlp"),
-        // Fall back to PATH as last resort
         "yt-dlp",
       ];
 
-  // Return the first path that exists, or the last one as fallback
   for (const p of possiblePaths.slice(0, -1)) {
     if (fs.existsSync(p)) {
       return p;
@@ -53,10 +48,8 @@ const getYtDlpPath = (): string => {
   return possiblePaths[possiblePaths.length - 1];
 };
 
-// Store the path to yt-dlp
 const ytDlpPath = getYtDlpPath();
 
-// Helper functions to handle common yt-dlp process operations
 const handleYtDlpStderr = (data: Buffer, stderr: string): string => {
   const errorText = data.toString();
   const newStderr = stderr + errorText;
@@ -72,7 +65,7 @@ const handleYtDlpStderr = (data: Buffer, stderr: string): string => {
 };
 
 const processYtDlpErrors = (stderr: string, code: number | null): string => {
-  const exitCode = code ?? -1; // Default to -1 if code is null
+  const exitCode = code ?? -1;
   const actualErrors = stderr
     .split("\n")
     .filter((line) => !line.includes("[debug]") && line.trim() !== "")
@@ -132,12 +125,10 @@ const isYtDlpInstalled = (): boolean => {
 };
 
 const sanitizeFilename = (filename: string): string => {
-  // Replace invalid filename characters with underscores
   let sanitized = filename
-    .replace(/[/\\?%*:|"<>]/g, "_") // Remove characters invalid for filenames
-    .replace(/\s+/g, "_"); // Replace spaces with underscores
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\s+/g, "_");
 
-  // Limit filename length to avoid path length issues
   if (sanitized.length > 100) {
     sanitized = sanitized.substring(0, 100);
   }
@@ -295,7 +286,6 @@ const qualityToFormat: Record<string, string> = {
   auto: "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
 };
 
-// Helper function to validate prerequisites
 const validatePrerequisites = (
   url: string,
   set: any
@@ -329,7 +319,6 @@ const validatePrerequisites = (
   return null;
 };
 
-// Helper function to prepare for download
 const prepareDownload = async (
   url: string,
   quality: string
@@ -356,104 +345,38 @@ const prepareDownload = async (
   return { videoInfo, sanitizedTitle, mp4Path, format };
 };
 
-// Helper function to upload to BunnyCDN
-const uploadToBunnyCDN = (
+const uploadToStorage = async (
   mp4Path: string,
   sanitizedTitle: string,
   videoInfo: YtDlpResponse,
   quality: string
-): Promise<
-  | {
-      success: true;
-      url: string;
-      quality: string;
-      title: string;
-      duration: number;
-    }
-  | { success: false; error: string; localPath?: string }
-> => {
-  const REGION = "";
-  const BASE_HOSTNAME = "storage.bunnycdn.com";
-  const HOSTNAME = REGION ? `${REGION}.${BASE_HOSTNAME}` : BASE_HOSTNAME;
-  const STORAGE_ZONE_NAME = config.storageBucket;
-  const FILENAME_TO_UPLOAD = `${sanitizedTitle}.mp4`;
-  const FILE_PATH = "/";
-  const ACCESS_KEY = envService.get("BUNNYCDN_API_KEY");
-
-  const uploadPath = `/${STORAGE_ZONE_NAME}${FILE_PATH}${FILENAME_TO_UPLOAD}`;
-  const fileStream = fs.createReadStream(mp4Path);
-  const fileStats = fs.statSync(mp4Path);
-
-  const requestOptions = {
-    method: "PUT",
-    host: HOSTNAME,
-    path: uploadPath,
-    headers: {
-      AccessKey: ACCESS_KEY,
-      "Content-Type": "video/mp4",
-      "Content-Length": fileStats.size,
+) => {
+  const result = await uploadToBunnyCDN(
+    mp4Path,
+    `${sanitizedTitle}.mp4`,
+    {
+      storageBucket: config.storageBucket,
+      cdnHostname: config.cdnHostname,
     },
-  };
+    {
+      quality,
+      title: videoInfo.title,
+      duration: videoInfo.duration,
+    }
+  );
 
-  return new Promise((resolve) => {
-    const req = https.request(requestOptions, (res: IncomingMessage) => {
-      let responseData = "";
-
-      res.on("data", (chunk: Buffer) => {
-        responseData += chunk.toString("utf8");
-      });
-
-      res.on("end", () => {
-        logger.info(`BunnyCDN upload response: ${responseData}`);
-
-        if (res.statusCode === 201) {
-          const cdnUrl = `https://${config.cdnHostname}${FILE_PATH}${FILENAME_TO_UPLOAD}`;
-          deleteFile(mp4Path);
-
-          resolve({
-            success: true,
-            url: cdnUrl,
-            quality: quality,
-            title: videoInfo.title,
-            duration: videoInfo.duration,
-          });
-        } else {
-          logger.error(
-            `Failed to upload to BunnyCDN: ${res.statusCode} ${responseData}`
-          );
-          resolve({
-            success: false,
-            error: `Failed to upload to CDN: ${res.statusCode} ${responseData}`,
-            localPath: mp4Path,
-          });
-        }
-      });
-    });
-
-    req.on("error", (e: Error) => {
-      logger.error(`Problem with BunnyCDN request: ${e.message}`);
-      resolve({
-        success: false,
-        error: `Connection error with CDN: ${e.message}`,
-        localPath: mp4Path,
-      });
-    });
-
-    fileStream.pipe(req);
-
-    fileStream.on("error", (err: Error) => {
-      logger.error(`Error reading file for upload: ${err.message}`);
-      req.destroy();
-      resolve({
-        success: false,
-        error: `Failed to read local file: ${err.message}`,
-        localPath: mp4Path,
-      });
-    });
-  });
+  if (result.success) {
+    return {
+      success: true as const,
+      url: result.url,
+      quality: result.data.quality,
+      title: result.data.title,
+      duration: result.data.duration,
+    };
+  }
+  return result;
 };
 
-// Helper function to handle errors
 const handleProcessingError = (
   error: unknown,
   mp4Path: string | undefined,
@@ -510,11 +433,9 @@ export const mp4Service = new Elysia().post(
   async ({ body, set }) => {
     const { url, quality = "auto" } = body;
 
-    // Validate prerequisites
     const validationError = validatePrerequisites(url, set);
     if (validationError) return validationError;
 
-    // Ensure download directory exists
     if (!fs.existsSync(config.downloadDir)) {
       fs.mkdirSync(config.downloadDir, { recursive: true });
     }
@@ -522,7 +443,6 @@ export const mp4Service = new Elysia().post(
     let mp4Path: string | undefined;
 
     try {
-      // Prepare for download
       const {
         videoInfo,
         sanitizedTitle,
@@ -531,12 +451,10 @@ export const mp4Service = new Elysia().post(
       } = await prepareDownload(url, quality);
       mp4Path = filePath;
 
-      // Download the video
       await downloadVideo(url, mp4Path, format);
       logger.info(`Download completed: ${mp4Path}`);
 
-      // Upload to BunnyCDN
-      return uploadToBunnyCDN(mp4Path, sanitizedTitle, videoInfo, quality);
+      return uploadToStorage(mp4Path, sanitizedTitle, videoInfo, quality);
     } catch (error) {
       return handleProcessingError(error, mp4Path, set);
     }
