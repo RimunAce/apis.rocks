@@ -1,12 +1,12 @@
-FROM oven/bun:1.0.25 AS builder
+FROM oven/bun:latest AS builder
 
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY package.json bun.lock ./
+COPY package.json bun.lockb* ./
 
-# Install all dependencies including devDependencies
-RUN bun install
+# Install dependencies
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -15,7 +15,7 @@ COPY . .
 RUN bun run build
 
 # Start a new stage for the runtime
-FROM oven/bun:1.0.25
+FROM oven/bun:latest
 
 WORKDIR /app
 
@@ -33,8 +33,8 @@ RUN adduser --disabled-password --gecos "" appuser && \
     mkdir -p ./downloads && chown appuser:appuser ./downloads && chmod 755 ./downloads
 
 # Copy package files and install production dependencies only
-COPY package.json bun.lock ./
-RUN bun install --production
+COPY package.json bun.lockb* ./
+RUN bun install --frozen-lockfile --production
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
