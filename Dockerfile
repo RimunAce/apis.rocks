@@ -3,21 +3,16 @@ FROM oven/bun:1.0.25 AS builder
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY package.json ./
+COPY package.json bun.lockb ./
 
-# Create a modified package.json without any file dependencies and install
-RUN cat package.json | grep -v "file:" > package.clean.json && \
-    mv package.clean.json package.json && \
-    cat package.json && \
-    bun install || echo "Continuing despite errors" && \
-    echo "Dependencies installed"
+# Install all dependencies including devDependencies
+RUN bun install
 
-# Copy source code (only necessary files)
-COPY src/ ./src/
-COPY tsconfig.json ./
+# Copy source code
+COPY . .
 
 # Build the application
-RUN bun run build || echo "Build completed with warnings"
+RUN bun run build
 
 # Start a new stage for the runtime
 FROM oven/bun:1.0.25
@@ -38,19 +33,11 @@ RUN adduser --disabled-password --gecos "" appuser && \
     mkdir -p ./downloads && chown appuser:appuser ./downloads && chmod 755 ./downloads
 
 # Copy package files and install production dependencies only
-COPY package.json ./
-
-# Create a modified package.json without any file dependencies and install production deps
-RUN cat package.json | grep -v "file:" > package.clean.json && \
-    mv package.clean.json package.json && \
-    cat package.json && \
-    bun install --production || echo "Continuing despite errors" && \
-    echo "Production dependencies installed"
+COPY package.json bun.lockb ./
+RUN bun install --production
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
-
-# Copy necessary files for runtime
 COPY --from=builder /app/src/utility ./src/utility
 
 # Set ownership of application files to appuser
